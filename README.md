@@ -67,7 +67,7 @@ cd templates/openclaw
 make setup
 
 # Deploy: creates host dirs, sets permissions, builds image, starts container
-make deploy AGENT_NAME=openclaw-paul
+make deploy CONTAINER_NAME=<your-container-name>
 
 # SSH in
 ssh -p 2201 agent@localhost
@@ -76,11 +76,11 @@ ssh -p 2201 agent@localhost
 ## Deployment Parameters
 
 All instance-specific values are stored in `.env` at the deployment volume path
-(`/tank/docker/volumes/agents/<AGENT_NAME>/.env`), never in the repo.
+(`<VOLUMES_ROOT>/<CONTAINER_NAME>/.env`), never in the repo.
 
 | Variable | Example | Purpose |
 |---|---|---|
-| `AGENT_NAME` | `openclaw-paul` | Container name, hostname, volume paths |
+| `CONTAINER_NAME` | `(<your-container-name>)` | Container name, hostname, volume paths |
 | `AGENT_UID` | `1101` | UID of the agent user inside the container |
 | `AGENT_GID` | `1101` | GID (usually matches UID) |
 | `SSH_PORT` | `2201` | Host port mapped to container SSH |

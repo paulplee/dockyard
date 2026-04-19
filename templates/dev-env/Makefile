@@ -2,15 +2,24 @@
 # dockyard / dev-env — Makefile
 # =============================================================================
 
-# ── Required: pass AGENT_NAME on the command line or export it ───────────────
-# Example: make deploy AGENT_NAME=openclaw-paul
-ifndef AGENT_NAME
-  $(warning AGENT_NAME is not set. Run: make setup  or  make <target> AGENT_NAME=<name>)
+# ── Required: pass CONTAINER_NAME on the command line or export it ──────────
+# Example: make deploy CONTAINER_NAME=<your-container-name>
+ifndef CONTAINER_NAME
+  $(warning CONTAINER_NAME is not set. Run: make setup  or  make <target> CONTAINER_NAME=<name>)
 endif
 
 # ── Paths ────────────────────────────────────────────────────────────────────
-VOLUMES_ROOT := /tank/docker/volumes/agents
-VOLUMES_BASE := $(VOLUMES_ROOT)/$(AGENT_NAME)
+# Load machine-local config — stores VOLUMES_ROOT (written by 'make setup')
+-include $(HOME)/.dockyard
+
+# Guard: VOLUMES_ROOT must be defined for all targets except 'setup'
+ifeq ($(filter setup,$(MAKECMDGOALS)),)
+  ifndef VOLUMES_ROOT
+    $(error VOLUMES_ROOT is not set. Run 'make setup' to configure this machine.)
+  endif
+endif
+
+VOLUMES_BASE := $(VOLUMES_ROOT)/$(CONTAINER_NAME)
 SHARED_DIR   := ../../shared
 
 # Load .env from the deployment volume path (outside the repo)

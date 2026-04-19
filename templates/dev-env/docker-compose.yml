@@ -15,8 +15,8 @@ services:
         AGENT_UID: "${AGENT_UID}"
         NEOVIM_VERSION: "0.12.1"
         SSH_PORT: "22"
-    container_name: agent-${AGENT_NAME}
-    hostname: ${AGENT_NAME}
+    container_name: agent-${CONTAINER_NAME}
+    hostname: ${CONTAINER_NAME}
     restart: unless-stopped
     ports:
       - "127.0.0.1:${SSH_PORT}:22"
@@ -28,7 +28,7 @@ services:
       - ${VOLUMES_BASE}/secrets:/secrets:ro
       - ${VOLUMES_BASE}/logs:/logs
     environment:
-      AGENT_NAME: "${AGENT_NAME}"
+      CONTAINER_NAME: "${CONTAINER_NAME}"
       AGENT_USER: agent
     command: ["sleep", "infinity"]
     deploy:

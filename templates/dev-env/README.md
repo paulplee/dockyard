@@ -13,7 +13,7 @@ cd templates/dev-env
 make setup
 
 # 2. Deploy (creates host dirs, sets permissions, builds image, starts container)
-make deploy AGENT_NAME=<name>
+make deploy CONTAINER_NAME=<name>
 
 # 3. Activate group membership (once per login session)
 newgrp agents
@@ -35,7 +35,8 @@ ssh -p <SSH_PORT> agent@localhost
 
 ## Persistent Volumes
 
-All state lives on the host at `/tank/docker/volumes/agents/<AGENT_NAME>/`:
+All state lives on the host at the directory path specified when `make setup` is
+first run:
 
 | Directory | Container mount | Owner |
 |---|---|---|
@@ -51,10 +52,10 @@ All state lives on the host at `/tank/docker/volumes/agents/<AGENT_NAME>/`:
 | Target | Description |
 |---|---|
 | `make setup` | Interactive prompt → writes `.env` to deployment volume path |
-| `make deploy AGENT_NAME=<n>` | group → init → up |
-| `make up AGENT_NAME=<n>` | Build and start the container |
-| `make down AGENT_NAME=<n>` | Stop the container |
-| `make shell AGENT_NAME=<n>` | Exec into the container |
-| `make logs AGENT_NAME=<n>` | Tail container logs |
-| `make clean AGENT_NAME=<n>` | Remove container, image, and volume data (preserves SSH keys) |
-| `make reset AGENT_NAME=<n>` | Clean + deploy |
+| `make deploy CONTAINER_NAME=<n>` | group → init → up |
+| `make up CONTAINER_NAME=<n>` | Build and start the container |
+| `make down CONTAINER_NAME=<n>` | Stop the container |
+| `make shell CONTAINER_NAME=<n>` | Exec into the container |
+| `make logs CONTAINER_NAME=<n>` | Tail container logs |
+| `make clean CONTAINER_NAME=<n>` | Remove container, image, and volume data (preserves SSH keys) |
+| `make reset CONTAINER_NAME=<n>` | Clean + deploy |

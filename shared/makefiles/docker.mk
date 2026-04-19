@@ -2,7 +2,7 @@
 # dockyard — shared Makefile: Docker Compose operations
 # Included by each template's Makefile.
 # Provides: up, down, logs, shell, clean, reset, deploy
-# Expects:  COMPOSE, AGENT_NAME, VOLUMES_BASE, AGENT_DIRS
+# Expects:  COMPOSE, CONTAINER_NAME, VOLUMES_BASE, AGENT_DIRS
 # =============================================================================
 
 COMPOSE ?= docker compose
@@ -18,10 +18,10 @@ down:
 deploy: group init up
 
 logs:
-	docker logs -f agent-$(AGENT_NAME)
+	docker logs -f agent-$(CONTAINER_NAME)
 
 shell:
-	docker exec -it agent-$(AGENT_NAME) bash
+	docker exec -it agent-$(CONTAINER_NAME) bash
 
 # Remove containers, images, networks, and host volume data (preserves ssh keys)
 clean:

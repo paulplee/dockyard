@@ -18,5 +18,5 @@ list:
 	@echo "  Usage:"
 	@echo "    cd templates/<name>"
 	@echo "    make setup"
-	@echo "    make deploy AGENT_NAME=<instance>"
+	@echo "    make deploy CONTAINER_NAME=<instance>"
 	@echo ""

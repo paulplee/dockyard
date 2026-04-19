@@ -13,7 +13,7 @@ cd templates/openclaw
 make setup
 
 # 2. Deploy
-make deploy AGENT_NAME=<name>
+make deploy CONTAINER_NAME=<name>
 
 # 3. SSH in
 ssh -p <SSH_PORT> agent@localhost
