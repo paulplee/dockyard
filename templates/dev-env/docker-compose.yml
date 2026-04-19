@@ -1,0 +1,41 @@
+# =============================================================================
+# dockyard / dev-env — Docker Compose
+# A plain SSH-accessible development environment.
+# All instance-specific values come from .env (at VOLUMES_BASE).
+# =============================================================================
+name: dev-env
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        AGENT_USER: agent
+        AGENT_UID: "${AGENT_UID}"
+        NEOVIM_VERSION: "0.12.1"
+        SSH_PORT: "22"
+    container_name: agent-${AGENT_NAME}
+    hostname: ${AGENT_NAME}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${SSH_PORT}:22"
+    volumes:
+      - ${VOLUMES_BASE}/workspace:/workspace
+      - ${VOLUMES_BASE}/nvim-data:/home/agent/.local/share/nvim
+      - ${VOLUMES_BASE}/nvim-state:/home/agent/.local/state/nvim
+      - ${VOLUMES_BASE}/ssh/authorized_keys:/home/agent/.ssh/authorized_keys
+      - ${VOLUMES_BASE}/secrets:/secrets:ro
+      - ${VOLUMES_BASE}/logs:/logs
+    environment:
+      AGENT_NAME: "${AGENT_NAME}"
+      AGENT_USER: agent
+    command: ["sleep", "infinity"]
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 16G
+        reservations:
+          cpus: "0.5"
+          memory: 512M

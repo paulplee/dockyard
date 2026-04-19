@@ -1,0 +1,23 @@
+# LLM / AI
+openai>=1.40.0
+anthropic>=0.30.0
+litellm>=1.40.0
+
+# HTTP & async
+httpx>=0.27.0
+aiohttp>=3.9.0
+
+# Structured data
+pydantic>=2.7.0
+python-dotenv>=1.0.0
+
+# Logging & observability
+structlog>=24.1.0
+rich>=13.7.0
+
+# Task queue (matches ae86 Celery stack)
+celery[redis]>=5.4.0
+redis>=5.0.0
+
+# Utilities
+tenacity>=8.3.0

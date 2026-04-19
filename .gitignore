@@ -1,0 +1,18 @@
+# Secrets — never commit
+.env
+*.env
+
+# Copied into template dirs by `make prepare` — rebuild artefact
+templates/*/entrypoint.sh
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Docker build context noise
+*.tar.gz
+*.log
