@@ -5,7 +5,7 @@ After=network-online.target
 
 [Service]
 Type=simple
-Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=PATH=/home/agent/.local/bin:/home/agent/.npm-global/bin:/home/agent/bin:/home/agent/.volta/bin:/home/agent/.asdf/shims:/home/agent/.bun/bin:/home/agent/.nvm/current/bin:/home/agent/.fnm/current/bin:/home/agent/.local/share/pnpm:/usr/local/bin:/usr/bin:/bin
 ExecStart=/usr/bin/openclaw gateway
 Restart=on-failure
 RestartSec=5
