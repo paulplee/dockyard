@@ -75,7 +75,7 @@ setup:
 	 sshcfg="$(HOME)/.ssh/config"; \
 	 stanza="# dockyard: dy-$$name"; \
 	 if ! grep -qF "$$stanza" "$$sshcfg" 2>/dev/null; then \
-	   printf "\n$$stanza\nHost dy-$$name\n    HostName 127.0.0.1\n    Port $$port\n    User agent\n    IdentityFile $$keyfile\n    StrictHostKeyChecking accept-new\n    UserKnownHostsFile $(HOME)/.config/dockyard/known_hosts\n" >> "$$sshcfg"; \
+	   printf "\n$$stanza\nHost dy-$$name\n    HostName 127.0.0.1\n    Port $$port\n    User agent\n    IdentityFile $$keyfile\n    IdentitiesOnly yes\n    StrictHostKeyChecking accept-new\n    UserKnownHostsFile $(HOME)/.config/dockyard/known_hosts\n" >> "$$sshcfg"; \
 	   chmod 600 "$$sshcfg"; \
 	   echo "  Added 'dy-$$name' to ~/.ssh/config  →  ssh dy-$$name"; \
 	 else \

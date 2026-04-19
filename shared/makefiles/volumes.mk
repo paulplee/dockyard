@@ -16,4 +16,8 @@ init:
 	@sudo chmod -R 2770 $(AGENT_DIRS)
 	@echo ">>> Setting secrets permissions (root-owned, 750)..."
 	@sudo chmod 750 $(VOLUMES_BASE)/secrets
+	@if [ -f "$(VOLUMES_BASE)/ssh/authorized_keys" ]; then \
+	  sudo chown $(AGENT_UID):$(AGENT_GID) "$(VOLUMES_BASE)/ssh/authorized_keys"; \
+	  sudo chmod 600 "$(VOLUMES_BASE)/ssh/authorized_keys"; \
+	fi
 	@echo ">>> Init complete."
