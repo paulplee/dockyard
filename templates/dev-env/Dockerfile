@@ -32,7 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-venv python3-dev \
     nodejs npm \
     bat \
-    ripgrep fd-find fzf jq htop procps \
+    ripgrep fd-find fzf jq htop btop procps \
     ca-certificates dnsutils iputils-ping \
     tmux \
     sudo \
@@ -40,6 +40,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 'bat' is installed as 'batcat' on Debian — alias it
 RUN ln -sf /usr/bin/batcat /usr/local/bin/bat
+
+# ── uv (Python package manager) ─────────────────────────────────────────────
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
 # ── Neovim (latest stable) ──────────────────────────────────────────────────
 RUN curl -fsSL \

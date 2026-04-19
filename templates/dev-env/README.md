@@ -31,6 +31,8 @@ ssh -p <SSH_PORT> agent@localhost
 | Python 3 | system | pip, venv, dev headers |
 | Node.js | system | npm included |
 | bat, ripgrep, fd, fzf, jq | system | Modern CLI essentials |
+| btop | system | Interactive process/resource monitor |
+| uv | latest | Fast Python package manager (Astral) |
 | SSH server | hardened | Key-only auth, no root login |
 
 ## Persistent Volumes

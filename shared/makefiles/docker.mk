@@ -18,10 +18,10 @@ down:
 deploy: group init up
 
 logs:
-	docker logs -f dockyard-$(CONTAINER_NAME)
+	docker logs -f dy-$(CONTAINER_NAME)
 
 shell:
-	docker exec -it dockyard-$(CONTAINER_NAME) bash
+	docker exec -it dy-$(CONTAINER_NAME) bash
 
 # Remove containers, images, networks, and host volume data (preserves ssh keys)
 clean:
