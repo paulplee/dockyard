@@ -10,7 +10,7 @@ endif
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 # Load machine-local config — stores VOLUMES_ROOT (written by 'make setup')
--include $(HOME)/.dockyard
+-include $(HOME)/.config/dockyard/.env
 
 # Guard: VOLUMES_ROOT must be defined for all targets except 'setup'
 ifeq ($(filter setup,$(MAKECMDGOALS)),)

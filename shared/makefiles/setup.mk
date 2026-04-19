@@ -12,10 +12,13 @@
 setup:
 	@echo "=== Dockyard Deployment Setup ==="
 	@echo ""
-	@hostcfg="$(HOME)/.dockyard"; \
+	@hostcfg="$(HOME)/.config/dockyard/.env"; \
+	 mkdir -p "$(HOME)/.config/dockyard"; \
 	 if [ -f "$$hostcfg" ]; then . "$$hostcfg"; fi; \
 	 if [ -z "$${VOLUMES_ROOT:-}" ]; then \
-	   read -p "Volumes root path (e.g. /tank/docker/volumes/dockyard): " VOLUMES_ROOT; \
+	   defvol="$(HOME)/.config/dockyard/volumes"; \
+	   read -p "Volumes root path [$$defvol]: " VOLUMES_ROOT; \
+	   VOLUMES_ROOT="$${VOLUMES_ROOT:-$$defvol}"; \
 	   printf "VOLUMES_ROOT=$$VOLUMES_ROOT\n" > "$$hostcfg"; \
 	   echo "  Written VOLUMES_ROOT to $$hostcfg"; \
 	 else \
@@ -23,8 +26,14 @@ setup:
 	 fi; \
 	 echo ""; \
 	 read -p "Deployment name              : " name; \
-	 read -p "Agent UID         (e.g. 1101):          " uid; \
-	 read -p "SSH port on host  (e.g. 2201):          " port; \
+	 defuid=1100; \
+	 while getent passwd "$$defuid" >/dev/null 2>&1; do defuid=$$((defuid + 1)); done; \
+	 read -p "Agent UID                [$$defuid]: " uid; \
+	 uid="$${uid:-$$defuid}"; \
+	 defport=2200; \
+	 while ss -tlnH 2>/dev/null | awk '{print $$4}' | grep -q ":$$defport$$"; do defport=$$((defport + 1)); done; \
+	 read -p "SSH port on host         [$$defport]: " port; \
+	 port="$${port:-$$defport}"; \
 	 envdir="$$VOLUMES_ROOT/$$name"; \
 	 sudo mkdir -p "$$envdir"; \
 	 envfile="$$envdir/.env"; \

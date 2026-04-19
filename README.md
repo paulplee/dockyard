@@ -76,7 +76,8 @@ ssh -p 2201 agent@localhost
 ## Deployment Parameters
 
 All instance-specific values are stored in `.env` at the deployment volume path
-(`<VOLUMES_ROOT>/<CONTAINER_NAME>/.env`), never in the repo.
+(`<VOLUMES_ROOT>/<CONTAINER_NAME>/.env`), never in the repo. The host-level
+`VOLUMES_ROOT` is stored in `~/.config/dockyard/.env` (written by `make setup`).
 
 | Variable | Example | Purpose |
 |---|---|---|
@@ -92,7 +93,6 @@ names, UIDs, and ports.
 
 - Docker Engine with Compose v2
 - `sudo` access (for volume directory creation and group management)
-- ZFS-backed `/tank/docker/volumes/` (recommended, not required)
 
 ## Adding a New Template
 
