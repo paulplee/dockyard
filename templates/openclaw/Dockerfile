@@ -30,19 +30,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-server \
     build-essential cmake ninja-build pkg-config \
     python3 python3-pip python3-venv python3-dev \
-    nodejs npm \
     bat \
     ripgrep fd-find fzf jq htop btop procps \
     ca-certificates dnsutils iputils-ping \
     tmux \
     sudo \
-    && rm -rf /var/lib/apt/lists/*
+    systemd systemd-sysv dbus libpam-systemd \
+    && rm -rf /var/lib/apt/lists/* \
+    && systemctl enable ssh dbus \
+    && for unit in \
+           getty@.service \
+           systemd-udevd.service \
+           systemd-udevd-kernel.socket \
+           systemd-udevd-control.socket; do \
+       ln -sf /dev/null /etc/systemd/system/"${unit}"; \
+    done
 
 # 'bat' is installed as 'batcat' on Debian — alias it
 RUN ln -sf /usr/bin/batcat /usr/local/bin/bat
 
 # ── uv (Python package manager) ─────────────────────────────────────────────
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+# ── Node.js 24 + openclaw CLI ────────────────────────────────────────────────
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g openclaw@latest
 
 # ── Neovim (latest stable) ──────────────────────────────────────────────────
 RUN curl -fsSL \
@@ -104,16 +118,34 @@ RUN mkdir -p /workspace /secrets /logs \
 
 # ── OpenClaw-specific Python packages ────────────────────────────────────────
 COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install --break-system-packages --no-cache-dir \
-        -r /tmp/requirements.txt \
+RUN uv pip install --system --break-system-packages --no-cache -r /tmp/requirements.txt \
     && rm /tmp/requirements.txt
 
-# ── Entrypoint ───────────────────────────────────────────────────────────────
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# ── Container init script + systemd unit (SSH host keys + permissions) ───────
+COPY container-init.sh /usr/local/sbin/container-init.sh
+COPY container-init.service /etc/systemd/system/container-init.service
+RUN chmod 755 /usr/local/sbin/container-init.sh \
+    && mkdir -p /etc/systemd/system/multi-user.target.wants \
+    && ln -sf /etc/systemd/system/container-init.service \
+              /etc/systemd/system/multi-user.target.wants/container-init.service
+
+# ── OpenClaw gateway systemd user service (auto-starts via linger) ────────────
+RUN mkdir -p /home/${AGENT_USER}/.config/systemd/user/default.target.wants
+COPY openclaw-gateway.service /tmp/openclaw-gateway.service
+RUN cp /tmp/openclaw-gateway.service \
+       /home/${AGENT_USER}/.config/systemd/user/openclaw-gateway.service \
+    && ln -sf ../openclaw-gateway.service \
+              /home/${AGENT_USER}/.config/systemd/user/default.target.wants/openclaw-gateway.service \
+    && chown -R ${AGENT_USER}:${AGENT_USER} /home/${AGENT_USER}/.config \
+    && rm /tmp/openclaw-gateway.service
+
+# Enable linger so user services start on boot without an interactive login
+RUN mkdir -p /var/lib/systemd/linger \
+    && touch /var/lib/systemd/linger/${AGENT_USER}
 
 ENV AGENT_USER=${AGENT_USER}
 
 EXPOSE ${SSH_PORT}
 
-ENTRYPOINT ["/entrypoint.sh"]
+STOPSIGNAL SIGRTMIN+3
+ENTRYPOINT ["/lib/systemd/systemd"]

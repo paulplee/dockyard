@@ -35,6 +35,7 @@ AGENT_GID ?= $(AGENT_UID)
 
 # Directories owned by the agent user
 AGENT_DIRS := \
+	$(VOLUMES_BASE)/openclaw-data \
 	$(VOLUMES_BASE)/nvim-data \
 	$(VOLUMES_BASE)/nvim-state \
 	$(VOLUMES_BASE)/workspace \
