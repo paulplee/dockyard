@@ -67,7 +67,7 @@ cd templates/openclaw
 make setup
 
 # Deploy: creates host dirs, sets permissions, builds image, starts container
-make deploy CONTAINER_NAME=<your-container-name>
+make deploy c=<your-container-name>
 
 # SSH in
 ssh -p 2201 agent@localhost
@@ -93,6 +93,21 @@ names, UIDs, and ports.
 
 - Docker Engine with Compose v2
 - `sudo` access (for volume directory creation and group management)
+
+## Makefile Targets
+
+| Target | Description |
+|---|---|
+| `make setup` | Interactive prompt → writes `.env` to deployment volume path |
+| `make deploy c=<n>` | Full deploy: group → init → up (errors if already running) |
+| `make up c=<n>` | Build and start the container |
+| `make down c=<n>` | Stop the container |
+| `make shell c=<n>` | Exec into the container |
+| `make logs c=<n>` | Tail container logs |
+| `make clean c=<n>` | Remove container, image, and volume data (preserves SSH keys) |
+| `make reset c=<n>` | Clean + deploy |
+
+`CONTAINER_NAME=<n>` is also accepted as a long form.
 
 ## Adding a New Template
 

@@ -1,21 +1,53 @@
 # =============================================================================
 # dockyard — shared Makefile: Docker Compose operations
 # Included by each template's Makefile.
-# Provides: up, down, logs, shell, clean, reset, deploy
-# Expects:  COMPOSE, CONTAINER_NAME, VOLUMES_BASE, AGENT_DIRS
+# Provides: down, logs, shell, clean, reset, deploy, guard-container
+# Note:     'up' is defined by each template (to allow prepare + --build)
+# Expects:  COMPOSE, CONTAINER_NAME, VOLUMES_BASE, VOLUMES_ROOT, AGENT_DIRS
 # =============================================================================
 
 COMPOSE ?= docker compose
 
-.PHONY: up down deploy logs shell clean reset
+.PHONY: up down deploy guard-container logs shell clean reset
 
-up:
-	$(COMPOSE) --env-file $(VOLUMES_BASE)/.env up -d
+guard-container:
+	@if [ -z "$(CONTAINER_NAME)" ]; then \
+	  echo ""; \
+	  echo "  ERROR: CONTAINER_NAME is not set."; \
+	  echo ""; \
+	  echo "  Known deployments in $(VOLUMES_ROOT):"; \
+	  if [ -d "$(VOLUMES_ROOT)" ]; then \
+	    found=$$(ls -1 "$(VOLUMES_ROOT)" 2>/dev/null); \
+	    if [ -n "$$found" ]; then \
+	      echo "$$found" | sed 's/^/    /'; \
+	    else \
+	      echo "    (none yet — run 'make setup' first)"; \
+	    fi; \
+	  else \
+	    echo "    ($(VOLUMES_ROOT) does not exist — run 'make setup' first)"; \
+	  fi; \
+	  echo ""; \
+	  echo "  Usage:  make <target> CONTAINER_NAME=<name>"; \
+	  echo "          make <target> c=<name>"; \
+	  echo ""; \
+	  exit 1; \
+	fi
+	@if [ "$(filter reset,$(MAKECMDGOALS))" = "" ]; then \
+	  running=$$(docker ps --format '{{.Names}}' 2>/dev/null | grep "^dockyard-$(CONTAINER_NAME)$$" || true); \
+	  if [ -n "$$running" ]; then \
+	    echo ""; \
+	    echo "  WARNING: Container 'dockyard-$(CONTAINER_NAME)' is already running."; \
+	    echo "  To force a fresh deploy:  make reset c=$(CONTAINER_NAME)"; \
+	    echo "  To stop and remove only:  make clean c=$(CONTAINER_NAME)"; \
+	    echo ""; \
+	    exit 1; \
+	  fi; \
+	fi
 
 down:
 	$(COMPOSE) --env-file $(VOLUMES_BASE)/.env down
 
-deploy: group init up
+deploy: guard-container group init up
 
 logs:
 	docker logs -f dy-$(CONTAINER_NAME)

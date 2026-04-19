@@ -3,9 +3,14 @@
 # =============================================================================
 
 # ── Required: pass CONTAINER_NAME on the command line or export it ──────────
-# Example: make deploy CONTAINER_NAME=<your-container-name>
-ifndef CONTAINER_NAME
-  $(warning CONTAINER_NAME is not set. Run: make setup  or  make <target> CONTAINER_NAME=<name>)
+# Example: make deploy CONTAINER_NAME=<name>  or  make deploy c=<name>
+ifdef c
+  CONTAINER_NAME := $(c)
+endif
+ifeq ($(filter setup,$(MAKECMDGOALS)),)
+  ifndef CONTAINER_NAME
+    $(warning CONTAINER_NAME is not set. Run: make setup  or  make <target> CONTAINER_NAME=<name>)
+  endif
 endif
 
 # ── Paths ────────────────────────────────────────────────────────────────────
@@ -53,7 +58,7 @@ prepare:
 up: prepare
 	docker compose --env-file $(VOLUMES_BASE)/.env up -d --build
 
-deploy: group init up
+deploy: guard-container group init up
 
 # ── Include shared targets ───────────────────────────────────────────────────
 include $(SHARED_DIR)/makefiles/setup.mk

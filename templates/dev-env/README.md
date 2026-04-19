@@ -13,7 +13,7 @@ cd templates/dev-env
 make setup
 
 # 2. Deploy (creates host dirs, sets permissions, builds image, starts container)
-make deploy CONTAINER_NAME=<name>
+make deploy c=<name>
 
 # 3. Activate group membership (once per login session)
 newgrp agents
@@ -51,13 +51,4 @@ first run:
 
 ## Makefile Targets
 
-| Target | Description |
-|---|---|
-| `make setup` | Interactive prompt → writes `.env` to deployment volume path |
-| `make deploy CONTAINER_NAME=<n>` | group → init → up |
-| `make up CONTAINER_NAME=<n>` | Build and start the container |
-| `make down CONTAINER_NAME=<n>` | Stop the container |
-| `make shell CONTAINER_NAME=<n>` | Exec into the container |
-| `make logs CONTAINER_NAME=<n>` | Tail container logs |
-| `make clean CONTAINER_NAME=<n>` | Remove container, image, and volume data (preserves SSH keys) |
-| `make reset CONTAINER_NAME=<n>` | Clean + deploy |
+See [Makefile Targets](../../README.md#makefile-targets) in the top-level README for the full reference.
