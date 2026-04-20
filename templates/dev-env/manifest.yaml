@@ -1,0 +1,17 @@
+name: dev-env
+description: Plain SSH-accessible development environment (no agent)
+
+agent_dirs:
+  - nvim-data
+  - nvim-state
+  - workspace
+  - logs
+root_dirs:
+  - ssh
+  - secrets
+
+build_args: []
+
+shared_files:
+  - src: shared/entrypoint.sh
+    dst: entrypoint.sh

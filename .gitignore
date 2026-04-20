@@ -16,3 +16,9 @@ templates/*/entrypoint.sh
 # Docker build context noise
 *.tar.gz
 *.log
+
+# Go build output
+/bin/
+/dockyard
+*.test
+*.out

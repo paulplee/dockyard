@@ -1,0 +1,31 @@
+name: openclaw
+description: Autonomous coding agent with LLM access (systemd + openclaw CLI)
+
+# Directories created under $VOLUMES_BASE; first group is owned by the agent
+# user (mode 2770), second group stays root-owned.
+agent_dirs:
+  - openclaw-data
+  - nvim-data
+  - nvim-state
+  - workspace
+  - logs
+root_dirs:
+  - ssh
+  - secrets
+
+# Build-arg prompts shown during `dockyard create`. Persisted to config.yaml
+# and passed through docker compose at deploy time.
+build_args:
+  - name: NODE_MAJOR
+    prompt: Node.js major version
+    default: "24"
+    options: ["22", "24"]
+    help: |
+      24 — Current (recommended by OpenClaw)
+      22 — LTS (use on older CPUs: Westmere / Sandy Bridge era)
+
+# Files copied from the shared/ tree into the build staging directory before
+# `docker compose build` runs. Paths are relative to the repo root.
+shared_files:
+  - src: shared/entrypoint.sh
+    dst: entrypoint.sh
