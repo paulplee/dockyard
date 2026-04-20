@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"runtime"
 )
 
 // sudo returns an *exec.Cmd that runs `sudo <args...>` with stdin, stdout, and
@@ -97,28 +98,50 @@ func ChownToSelf(path string) error {
 	return ChownPrivileged(path, uid, os.Getgid(), false)
 }
 
+// groupExists reports whether the named group is present on the host.
+func groupExists(name string) bool {
+	if runtime.GOOS == "darwin" {
+		return exec.Command("dscl", ".", "-read", "/Groups/"+name).Run() == nil
+	}
+	return exec.Command("getent", "group", name).Run() == nil
+}
+
 // EnsureGroup creates the named host group (if it does not exist) and adds the
 // current user. Equivalent to the Make-era `group` target.
 func EnsureGroup(name string, gid int) error {
 	fmt.Printf(">>> Ensuring host group '%s' (GID=%d)...\n", name, gid)
-	// Create group if missing.
-	chk := exec.Command("getent", "group", name)
-	if err := chk.Run(); err != nil {
-		if err := sudo("groupadd", "-g", fmt.Sprintf("%d", gid), name).Run(); err != nil {
-			return fmt.Errorf("create group %s: %w", name, err)
+
+	if !groupExists(name) {
+		if runtime.GOOS == "darwin" {
+			if err := sudo("dscl", ".", "-create", "/Groups/"+name).Run(); err != nil {
+				return fmt.Errorf("create group %s: %w", name, err)
+			}
+			if err := sudo("dscl", ".", "-create", "/Groups/"+name, "PrimaryGroupID", fmt.Sprintf("%d", gid)).Run(); err != nil {
+				return fmt.Errorf("set GID for group %s: %w", name, err)
+			}
+		} else {
+			if err := sudo("groupadd", "-g", fmt.Sprintf("%d", gid), name).Run(); err != nil {
+				return fmt.Errorf("create group %s: %w", name, err)
+			}
 		}
 	}
 	fmt.Printf("  group '%s' ready\n", name)
 
-	// Add current user.
+	// Add current user to the group.
 	u, err := user.Current()
 	if err != nil {
 		return err
 	}
-	if err := sudo("usermod", "-aG", name, u.Username).Run(); err != nil {
-		return fmt.Errorf("add %s to group %s: %w", u.Username, name, err)
+	if runtime.GOOS == "darwin" {
+		if err := sudo("dseditgroup", "-o", "edit", "-a", u.Username, "-t", "user", name).Run(); err != nil {
+			return fmt.Errorf("add %s to group %s: %w", u.Username, name, err)
+		}
+	} else {
+		if err := sudo("usermod", "-aG", name, u.Username).Run(); err != nil {
+			return fmt.Errorf("add %s to group %s: %w", u.Username, name, err)
+		}
 	}
 	fmt.Printf("  added %s to group '%s'\n", u.Username, name)
-	fmt.Println("  NOTE: run 'newgrp agents' or re-login for membership to take effect")
+	fmt.Println("  NOTE: re-login (or start a new shell) for group membership to take effect")
 	return nil
 }

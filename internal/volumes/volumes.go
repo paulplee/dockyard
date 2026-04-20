@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/paulplee/dockyard/internal/config"
 	"github.com/paulplee/dockyard/internal/template"
@@ -48,11 +49,17 @@ func Prepare(base string, m *template.Manifest, uid, gid int) error {
 	}
 	ak := filepath.Join(base, "ssh", "authorized_keys")
 	if _, err := os.Stat(ak); err == nil {
-		if err := config.ChownPrivileged(ak, uid, gid, false); err != nil {
-			return err
-		}
-		if err := config.ChmodPrivileged(ak, 0o600, false); err != nil {
-			return err
+		// On macOS, Docker Desktop (VirtioFS) accesses host files as the mac
+		// user, so authorized_keys must stay owned by that user or Docker
+		// cannot mount it. The container's sshd uses StrictModes no, so
+		// ownership inside the container does not matter.
+		if runtime.GOOS != "darwin" {
+			if err := config.ChownPrivileged(ak, uid, gid, false); err != nil {
+				return err
+			}
+			if err := config.ChmodPrivileged(ak, 0o600, false); err != nil {
+				return err
+			}
 		}
 	}
 	fmt.Println(">>> Volume preparation complete.")

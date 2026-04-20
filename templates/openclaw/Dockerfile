@@ -114,7 +114,8 @@ RUN mkdir -p /var/run/sshd \
         -e 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' \
         -e "s/#Port 22/Port ${SSH_PORT}/" \
         /etc/ssh/sshd_config \
-    && echo "AllowUsers ${AGENT_USER}" >> /etc/ssh/sshd_config
+    && echo "AllowUsers ${AGENT_USER}" >> /etc/ssh/sshd_config \
+    && echo "StrictModes no" >> /etc/ssh/sshd_config
 
 # authorized_keys is injected via bind mount at runtime
 RUN mkdir -p /home/${AGENT_USER}/.ssh \
