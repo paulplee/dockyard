@@ -19,7 +19,7 @@ ssh dy-<your-container-name>
 | Node.js (22 or 24) | Runtime for the openclaw CLI |
 | openclaw CLI | Agent orchestration and gateway |
 | systemd | PID 1 — manages openclaw-gateway as a user service |
-| container-init.sh | Oneshot: SSH host-key generation, permission fixes |
+| container-init.sh | Oneshot: SSH host-key generation, boot-seed, permission fixes |
 | openclaw-gateway.service | Auto-starts via systemd user linger |
 
 ### Python packages (via `requirements.txt`)
@@ -44,16 +44,11 @@ Declared in `manifest.yaml` and prompted during `dockyard create`:
 Override at deploy time by editing `$VolumesRoot/<name>/config.yaml` and
 re-running `dockyard deploy <name>`.
 
-## LiteLLM Access
-
-The container is configured with `LITELLM_BASE_URL=http://host.gateway.internal:4000`
-via `extra_hosts` in docker-compose.yml. This routes to the LiteLLM proxy running on
-the host machine, providing unified access to multiple LLM providers.
-
 ## Persistent Volumes
 
 | Directory | Container Mount | Owner |
 |---|---|---|
+| `config/` | `~/.config` | agent (2770) |
 | `openclaw-data/` | `~/.openclaw` | agent (2770) |
 | `workspace/` | `/workspace` | agent (2770) |
 | `nvim-data/` | `~/.local/share/nvim` | agent (2770) |
@@ -61,6 +56,40 @@ the host machine, providing unified access to multiple LLM providers.
 | `logs/` | `/logs` | agent (2770) |
 | `secrets/` | `/secrets` (read-only) | root (750) |
 | `ssh/authorized_keys` | `~/.ssh/authorized_keys` | agent |
+
+## First-Boot Seeding
+
+On first start, `container-init.sh` sources `boot-seed.sh` which:
+
+- Seeds **LazyVim** starter config into `~/.config/nvim/` (skipped if `init.lua`
+  already exists)
+- Seeds **TPM** (Tmux Plugin Manager) into `~/.config/tmux/plugins/tpm/` (skipped
+  if already present)
+- Installs the **openclaw-gateway** systemd user service into
+  `~/.config/systemd/user/` (skipped if already present)
+
+All seeding is idempotent — existing config is never overwritten.
+
+## Secrets
+
+An `env.example` file is seeded into `secrets/` on first deploy (never
+overwrites). Copy it and fill in your API keys:
+
+```bash
+cp /secrets/env.example /secrets/env
+```
+
+Source it on login by adding to `~/.bashrc`:
+
+```bash
+[ -f /secrets/env ] && set -a && source /secrets/env && set +a
+```
+
+## LiteLLM Access
+
+The container is configured with `LITELLM_BASE_URL=http://host.gateway.internal:4000`
+via `extra_hosts` in docker-compose.yml. This routes to the LiteLLM proxy running on
+the host machine, providing unified access to multiple LLM providers.
 
 ## Resource Limits
 

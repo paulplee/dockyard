@@ -85,7 +85,8 @@ RUN mkdir -p /workspace /secrets /logs \
 
 # ── Entrypoint ───────────────────────────────────────────────────────────────
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY boot-seed.sh /boot-seed.sh
+RUN chmod +x /entrypoint.sh /boot-seed.sh
 
 ENV AGENT_USER=${AGENT_USER}
 

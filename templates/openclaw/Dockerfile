@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake ninja-build pkg-config \
     python3 python3-pip python3-venv python3-dev \
     bat \
-    ripgrep fd-find fzf jq htop btop procps \
+    ripgrep fd-find fzf jq htop btop procps tree \
     ca-certificates dnsutils iputils-ping \
     tmux \
     sudo \
@@ -125,23 +125,19 @@ COPY requirements.txt /tmp/requirements.txt
 RUN uv pip install --system --break-system-packages --no-cache -r /tmp/requirements.txt \
     && rm /tmp/requirements.txt
 
-# ── Container init script + systemd unit (SSH host keys + permissions) ───────
+# ── Container init script + boot-seed + systemd unit ─────────────────────────
 COPY container-init.sh /usr/local/sbin/container-init.sh
+COPY boot-seed.sh /boot-seed.sh
 COPY container-init.service /etc/systemd/system/container-init.service
-RUN chmod 755 /usr/local/sbin/container-init.sh \
+RUN chmod 755 /usr/local/sbin/container-init.sh /boot-seed.sh \
     && mkdir -p /etc/systemd/system/multi-user.target.wants \
     && ln -sf /etc/systemd/system/container-init.service \
               /etc/systemd/system/multi-user.target.wants/container-init.service
 
-# ── OpenClaw gateway systemd user service (auto-starts via linger) ────────────
-RUN mkdir -p /home/${AGENT_USER}/.config/systemd/user/default.target.wants
-COPY openclaw-gateway.service /tmp/openclaw-gateway.service
-RUN cp /tmp/openclaw-gateway.service \
-       /home/${AGENT_USER}/.config/systemd/user/openclaw-gateway.service \
-    && ln -sf ../openclaw-gateway.service \
-              /home/${AGENT_USER}/.config/systemd/user/default.target.wants/openclaw-gateway.service \
-    && chown -R ${AGENT_USER}:${AGENT_USER} /home/${AGENT_USER}/.config \
-    && rm /tmp/openclaw-gateway.service
+# ── OpenClaw gateway systemd user service ─────────────────────────────────────
+# Installed to a stable image path; container-init.sh links it into the
+# bind-mounted ~/.config/systemd/user/ on each boot.
+COPY openclaw-gateway.service /usr/local/share/dockyard/openclaw-gateway.service
 
 # Enable linger so user services start on boot without an interactive login
 RUN mkdir -p /var/lib/systemd/linger \

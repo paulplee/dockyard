@@ -16,6 +16,8 @@ build_args: []
 shared_files:
   - src: shared/entrypoint.sh
     dst: entrypoint.sh
+  - src: shared/boot-seed.sh
+    dst: boot-seed.sh
 
 host_files:
   - src: env.example

@@ -4,6 +4,7 @@ description: Autonomous coding agent with LLM access (systemd + openclaw CLI)
 # Directories created under $VOLUMES_BASE; first group is owned by the agent
 # user (mode 2770), second group stays root-owned.
 agent_dirs:
+  - config
   - openclaw-data
   - nvim-data
   - nvim-state
@@ -29,3 +30,9 @@ build_args:
 shared_files:
   - src: shared/entrypoint.sh
     dst: entrypoint.sh
+  - src: shared/boot-seed.sh
+    dst: boot-seed.sh
+
+host_files:
+  - src: env.example
+    dst: secrets/env.example
