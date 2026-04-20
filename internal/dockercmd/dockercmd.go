@@ -40,8 +40,13 @@ func ContainerState(containerName string) (string, error) {
 }
 
 // Exec runs `docker exec` interactively against the given container.
-func Exec(containerName, user, workdir string, args ...string) error {
-	full := []string{"exec", "-it", "-u", user, "-w", workdir, containerName}
+// envVars is a list of "KEY=VALUE" strings passed as -e flags.
+func Exec(containerName, user, workdir string, envVars []string, args ...string) error {
+	full := []string{"exec", "-it", "-u", user, "-w", workdir}
+	for _, e := range envVars {
+		full = append(full, "-e", e)
+	}
+	full = append(full, containerName)
 	full = append(full, args...)
 	cmd := exec.Command("docker", full...)
 	cmd.Stdin = os.Stdin

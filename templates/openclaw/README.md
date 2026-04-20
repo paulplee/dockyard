@@ -19,8 +19,8 @@ ssh dy-<your-container-name>
 | Node.js (22 or 24) | Runtime for the openclaw CLI |
 | openclaw CLI | Agent orchestration and gateway |
 | systemd | PID 1 — manages openclaw-gateway as a user service |
-| container-init.sh | Oneshot: SSH host-key generation, boot-seed, permission fixes |
-| openclaw-gateway.service | Auto-starts via systemd user linger |
+| container-init.sh | Oneshot: SSH host-key generation, boot-seed, permission fixes, user systemd instance start |
+| openclaw-gateway.service | Auto-starts via systemd user linger; `container-init.sh` ensures `user@UID.service` is running so `openclaw gateway start` works |
 
 ### Python packages (via `requirements.txt`)
 

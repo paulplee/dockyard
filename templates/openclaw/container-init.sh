@@ -36,3 +36,13 @@ if [ ! -f "${SVC_DIR}/openclaw-gateway.service" ]; then
          && cp /usr/local/share/dockyard/openclaw-gateway.service ${SVC_DIR}/openclaw-gateway.service \
          && ln -sf ../openclaw-gateway.service ${SVC_DIR}/default.target.wants/openclaw-gateway.service"
 fi
+
+# Ensure the user systemd instance is running so the D-Bus session socket
+# exists when openclaw gateway start calls systemctl --user.
+# Without this, systemctl --user falls back to machine-transport on the system
+# bus and fails with "Permission denied" even though linger is enabled.
+AGENT_UID="$(id -u "${AGENT_USER}")"
+if ! systemctl is-active --quiet "user@${AGENT_UID}.service" 2>/dev/null; then
+    echo ">>> Starting user@${AGENT_UID} systemd instance..."
+    systemctl start "user@${AGENT_UID}.service" || true
+fi

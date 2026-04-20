@@ -98,6 +98,12 @@ RUN mkdir -p /home/${AGENT_USER}/.config/tmux/plugins \
     && rm -rf /tmp/mancave \
     && git clone https://github.com/tmux-plugins/tpm /home/${AGENT_USER}/.config/tmux/plugins/tpm
 
+# Ensure XDG_RUNTIME_DIR is always set — needed for systemctl --user in
+# docker exec sessions that bypass PAM (libpam-systemd only sets it for
+# PAM-authenticated logins such as SSH; docker exec skips PAM entirely).
+RUN echo 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' \
+        >> /home/${AGENT_USER}/.bashrc
+
 USER root
 
 # ── SSH hardening ────────────────────────────────────────────────────────────
