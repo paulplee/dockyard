@@ -17,7 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # ── Locale & timezone ───────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        locales tzdata \
+    locales tzdata \
     && sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen \
     && locale-gen \
     && ln -sf /usr/share/zoneinfo/Asia/Hong_Kong /etc/localtime \
@@ -39,11 +39,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && systemctl enable ssh dbus \
     && for unit in \
-           getty@.service \
-           systemd-udevd.service \
-           systemd-udevd-kernel.socket \
-           systemd-udevd-control.socket; do \
-       ln -sf /dev/null /etc/systemd/system/"${unit}"; \
+    getty@.service \
+    systemd-udevd.service \
+    systemd-udevd-kernel.socket \
+    systemd-udevd-control.socket; do \
+    ln -sf /dev/null /etc/systemd/system/"${unit}"; \
     done
 
 # 'bat' is installed as 'batcat' on Debian — alias it
@@ -81,12 +81,12 @@ USER ${AGENT_USER}
 
 # LazyVim bootstrap
 RUN git clone --depth 1 \
-        https://github.com/LazyVim/starter \
-        /home/${AGENT_USER}/.config/nvim \
+    https://github.com/LazyVim/starter \
+    /home/${AGENT_USER}/.config/nvim \
     && mkdir -p \
-        /home/${AGENT_USER}/.local/share/nvim \
-        /home/${AGENT_USER}/.local/state/nvim \
-        /home/${AGENT_USER}/.cache/nvim
+    /home/${AGENT_USER}/.local/share/nvim \
+    /home/${AGENT_USER}/.local/state/nvim \
+    /home/${AGENT_USER}/.cache/nvim
 
 # Pre-warm plugins so the first SSH login is instant
 RUN nvim --headless "+Lazy! sync" +qa 2>/dev/null || true
@@ -102,18 +102,18 @@ RUN mkdir -p /home/${AGENT_USER}/.config/tmux/plugins \
 # docker exec sessions that bypass PAM (libpam-systemd only sets it for
 # PAM-authenticated logins such as SSH; docker exec skips PAM entirely).
 RUN echo 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' \
-        >> /home/${AGENT_USER}/.bashrc
+    >> /home/${AGENT_USER}/.bashrc
 
 USER root
 
 # ── SSH hardening ────────────────────────────────────────────────────────────
 RUN mkdir -p /var/run/sshd \
     && sed -i \
-        -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' \
-        -e 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' \
-        -e 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' \
-        -e "s/#Port 22/Port ${SSH_PORT}/" \
-        /etc/ssh/sshd_config \
+    -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' \
+    -e 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' \
+    -e 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' \
+    -e "s/#Port 22/Port ${SSH_PORT}/" \
+    /etc/ssh/sshd_config \
     && echo "AllowUsers ${AGENT_USER}" >> /etc/ssh/sshd_config \
     && echo "StrictModes no" >> /etc/ssh/sshd_config
 
@@ -139,7 +139,7 @@ COPY container-init.service /etc/systemd/system/container-init.service
 RUN chmod 755 /usr/local/sbin/container-init.sh /boot-seed.sh \
     && mkdir -p /etc/systemd/system/multi-user.target.wants \
     && ln -sf /etc/systemd/system/container-init.service \
-              /etc/systemd/system/multi-user.target.wants/container-init.service
+    /etc/systemd/system/multi-user.target.wants/container-init.service
 
 # ── OpenClaw gateway systemd user service ─────────────────────────────────────
 # Installed to a stable image path; container-init.sh links it into the

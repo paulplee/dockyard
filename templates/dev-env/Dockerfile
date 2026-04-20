@@ -17,7 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # ── Locale & timezone ───────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        locales tzdata \
+    locales tzdata \
     && sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen \
     && locale-gen \
     && ln -sf /usr/share/zoneinfo/Asia/Hong_Kong /etc/localtime \
@@ -63,11 +63,11 @@ USER root
 # ── SSH hardening ────────────────────────────────────────────────────────────
 RUN mkdir -p /var/run/sshd \
     && sed -i \
-        -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' \
-        -e 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' \
-        -e 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' \
-        -e "s/#Port 22/Port ${SSH_PORT}/" \
-        /etc/ssh/sshd_config \
+    -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' \
+    -e 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' \
+    -e 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' \
+    -e "s/#Port 22/Port ${SSH_PORT}/" \
+    /etc/ssh/sshd_config \
     && echo "AllowUsers ${AGENT_USER}" >> /etc/ssh/sshd_config \
     && echo "StrictModes no" >> /etc/ssh/sshd_config
 
