@@ -56,5 +56,8 @@ func Prepare(base string, m *template.Manifest, uid, gid int) error {
 		}
 	}
 	fmt.Println(">>> Volume preparation complete.")
+	if err := template.WriteHostFiles(m.Name, base); err != nil {
+		return fmt.Errorf("seed host files: %w", err)
+	}
 	return nil
 }

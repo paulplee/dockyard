@@ -32,7 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-venv python3-dev \
     nodejs npm \
     bat \
-    ripgrep fd-find fzf jq htop btop procps \
+    ripgrep fd-find fzf jq htop btop procps tree \
     ca-certificates dnsutils iputils-ping \
     tmux \
     sudo \
@@ -57,28 +57,6 @@ RUN groupadd -g ${AGENT_UID} ${AGENT_USER} \
     && useradd -m -u ${AGENT_UID} -g ${AGENT_USER} -s /bin/bash ${AGENT_USER} \
     && echo "${AGENT_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${AGENT_USER} \
     && chmod 0440 /etc/sudoers.d/${AGENT_USER}
-
-# ── User-space setup (LazyVim + tmux) ────────────────────────────────────────
-USER ${AGENT_USER}
-
-# LazyVim bootstrap
-RUN git clone --depth 1 \
-        https://github.com/LazyVim/starter \
-        /home/${AGENT_USER}/.config/nvim \
-    && mkdir -p \
-        /home/${AGENT_USER}/.local/share/nvim \
-        /home/${AGENT_USER}/.local/state/nvim \
-        /home/${AGENT_USER}/.cache/nvim
-
-# Pre-warm plugins so the first SSH login is instant
-RUN nvim --headless "+Lazy! sync" +qa 2>/dev/null || true
-
-# tmux config and TPM
-RUN mkdir -p /home/${AGENT_USER}/.config/tmux/plugins \
-    && git clone https://github.com/paulplee/mancave /tmp/mancave \
-    && cp /tmp/mancave/config_files/.tmux.conf /home/${AGENT_USER}/.config/tmux/tmux.conf \
-    && rm -rf /tmp/mancave \
-    && git clone https://github.com/tmux-plugins/tpm /home/${AGENT_USER}/.config/tmux/plugins/tpm
 
 USER root
 

@@ -80,7 +80,8 @@ func newShellCmd() *cobra.Command {
 			if d == nil {
 				return fmt.Errorf("unknown deployment %q", args[0])
 			}
-			return dockercmd.Exec("dy-"+d.ContainerName, "bash")
+				u := d.GetAgentUser()
+				return dockercmd.Exec("dy-"+d.ContainerName, u, "/home/"+u, "bash")
 		},
 	}
 }

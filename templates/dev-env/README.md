@@ -17,7 +17,7 @@ ssh dy-mybox
 | Tool | Version | Notes |
 |---|---|---|
 | Neovim | 0.12.1 | LazyVim starter config, plugins pre-warmed at build time |
-| tmux | system | TPM + [mancave](https://github.com/paulplee/mancave) config baked in |
+| tmux | system | Stock install — configure from `workspace/` |
 | Python 3 | system | pip, venv, dev headers |
 | Node.js | system | npm included |
 | bat, ripgrep, fd, fzf, jq | system | Modern CLI essentials |
@@ -32,6 +32,7 @@ All state lives on the host under `$VolumesRoot/<name>/`:
 | Directory | Container Mount | Purpose |
 |---|---|---|
 | `workspace/` | `/workspace` | Your code and projects |
+| `config/` | `~/.config` | All app config (Neovim, tmux, etc.) |
 | `nvim-data/` | `~/.local/share/nvim` | Neovim plugins (persist across rebuilds) |
 | `nvim-state/` | `~/.local/state/nvim` | Neovim session state |
 | `logs/` | `/logs` | Structured log output |
@@ -40,48 +41,72 @@ All state lives on the host under `$VolumesRoot/<name>/`:
 
 ## Persisting Your Config
 
-The LazyVim starter config (`~/.config/nvim`) and tmux config are baked into
-the image and will be reset on `dockyard deploy` (rebuild). To keep your
-customisations across rebuilds, store them in the persistent `workspace/` volume
-and source/symlink them on login.
+`~/.config` is bind-mounted from the host (`config/` in the deployment directory),
+so all config survives rebuilds and is directly editable from the host.
 
 ### Neovim
 
-Neovim **plugin data** (`nvim-data/`) is already persistent — any plugins you
-install with `:Lazy sync` survive rebuilds. To also persist your config:
+On first container start the entrypoint seeds the
+[LazyVim starter](https://github.com/LazyVim/starter) into `config/nvim/` if it
+doesn't exist yet. Open nvim and run `:Lazy sync` to download plugins (stored in
+the persistent `nvim-data/` volume). Your config is immediately editable on the
+host at:
 
-```bash
-# inside the container
-mkdir -p /workspace/.config/nvim
-cp -r ~/.config/nvim/* /workspace/.config/nvim/
-echo 'export XDG_CONFIG_HOME=/workspace/.config' >> ~/.bashrc
 ```
-
-On next login the `XDG_CONFIG_HOME` override points Neovim at your workspace
-copy. Plugins still load from the persistent `nvim-data/` volume.
+~/.config/dockyard/volumes/<name>/config/nvim/
+```
 
 ### tmux
 
-Store your `tmux.conf` in the workspace and point tmux at it:
+tmux config lives at `~/.config/tmux/tmux.conf` — already persistent. To
+bootstrap from scratch inside the container:
 
 ```bash
-mkdir -p /workspace/.config/tmux
-cp ~/.config/tmux/tmux.conf /workspace/.config/tmux/tmux.conf
-# edit to taste, then:
-echo 'source-file /workspace/.config/tmux/tmux.conf' >> ~/.config/tmux/tmux.conf
+mkdir -p ~/.config/tmux
+# write your tmux.conf, or clone a dotfiles repo into workspace/ and symlink it:
+# ln -s /workspace/dotfiles/tmux.conf ~/.config/tmux/tmux.conf
 ```
 
-Or replace the config file entirely by overriding `XDG_CONFIG_HOME` as above.
+To install TPM:
+
+```bash
+git clone https://github.com/tmux-plugins/tpm ~/.config/tmux/plugins/tpm
+```
+
+Plugins install to `~/.config/tmux/plugins/` and persist automatically.
 
 ### Shell dotfiles
 
+Store your bashrc additions in the persistent `workspace/` and source them:
+
 ```bash
-# Store your bashrc additions in the workspace:
 cat >> /workspace/.bashrc_local << 'EOF'
 # your customisations here
 EOF
 echo '[ -f /workspace/.bashrc_local ] && source /workspace/.bashrc_local' >> ~/.bashrc
 ```
+
+## Secrets
+
+`secrets/env.example` is seeded into your deployment's `secrets/` directory on
+first deploy. Copy it to `env` and fill in your credentials:
+
+```bash
+# on the host
+cp ~/.config/dockyard/volumes/mybox/secrets/env.example \
+   ~/.config/dockyard/volumes/mybox/secrets/env
+# edit with real values
+```
+
+Inside the container, source it on login:
+
+```bash
+# add to ~/.bashrc inside the container
+[ -f /secrets/env ] && set -a && source /secrets/env && set +a
+```
+
+The `secrets/` directory is never added to the Docker image and is mounted
+read-only in the container.
 
 ## Build Args
 

@@ -46,6 +46,10 @@ func newCreateCmd() *cobra.Command {
 				return fmt.Errorf("deployment name is required")
 			}
 
+			agentUser, err := p.String("Agent username", "dy-user")
+			if err != nil {
+				return err
+			}
 			defUID := nextFreeUID(1100)
 			uid, err := p.Int("Agent UID", defUID)
 			if err != nil {
@@ -78,6 +82,7 @@ func newCreateCmd() *cobra.Command {
 				Name:          name,
 				Template:      tmplName,
 				ContainerName: name,
+				AgentUser:     agentUser,
 				AgentUID:      uid,
 				AgentGID:      uid,
 				SSHPort:       port,

@@ -43,6 +43,7 @@ type Manifest struct {
 	RootDirs    []string     `yaml:"root_dirs"`
 	BuildArgs   []BuildArg   `yaml:"build_args"`
 	SharedFiles []SharedFile `yaml:"shared_files"`
+	HostFiles   []SharedFile `yaml:"host_files"`
 }
 
 // List returns the names of all embedded templates (alphabetical).
@@ -126,6 +127,32 @@ func StageBuildContext(name, dstDir string) error {
 		}
 		if err := copyEmbedded(srcPath, dst); err != nil {
 			return fmt.Errorf("copy shared %s: %w", sf.Src, err)
+		}
+	}
+	return nil
+}
+
+// WriteHostFiles copies manifest host_files entries from the embedded template
+// into baseDir on the host. Unlike shared_files (which go into the Docker build
+// context), host_files are seeded directly into the host volume tree so the
+// user can edit them in place. Existing files are never overwritten.
+func WriteHostFiles(name, baseDir string) error {
+	m, err := LoadManifest(name)
+	if err != nil {
+		return err
+	}
+	root := filepath.Join("templates", name)
+	for _, hf := range m.HostFiles {
+		src := filepath.Join(root, hf.Src)
+		dst := filepath.Join(baseDir, hf.Dst)
+		if _, err := os.Stat(dst); err == nil {
+			continue // never overwrite user edits
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return err
+		}
+		if err := copyEmbedded(src, dst); err != nil {
+			return fmt.Errorf("seed host file %s: %w", hf.Src, err)
 		}
 	}
 	return nil

@@ -40,8 +40,9 @@ func ContainerState(containerName string) (string, error) {
 }
 
 // Exec runs `docker exec` interactively against the given container.
-func Exec(containerName string, args ...string) error {
-	full := append([]string{"exec", "-it", containerName}, args...)
+func Exec(containerName, user, workdir string, args ...string) error {
+	full := []string{"exec", "-it", "-u", user, "-w", workdir, containerName}
+	full = append(full, args...)
 	cmd := exec.Command("docker", full...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
