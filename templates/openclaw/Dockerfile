@@ -52,8 +52,12 @@ RUN ln -sf /usr/bin/batcat /usr/local/bin/bat
 # ── uv (Python package manager) ─────────────────────────────────────────────
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
-# ── Node.js 24 + openclaw CLI ────────────────────────────────────────────────
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+# ── Node.js + openclaw CLI ───────────────────────────────────────────────────
+# NODE_MAJOR: 24 (default, OpenClaw recommended) or 22 LTS.
+# Note: Node 24 has a jiti/V8 regression on Westmere/Sandy Bridge era x86 CPUs
+# that makes openclaw CLI ~2× slower. Use NODE_MAJOR=22 on such hardware.
+ARG NODE_MAJOR=24
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/* \
     && npm install -g openclaw@latest

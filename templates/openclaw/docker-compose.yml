@@ -15,6 +15,7 @@ services:
         AGENT_UID: "${AGENT_UID}"
         NEOVIM_VERSION: "0.12.1"
         SSH_PORT: "22"
+        NODE_MAJOR: "${NODE_MAJOR:-24}"
     container_name: dy-${CONTAINER_NAME}
     hostname: ${CONTAINER_NAME}
     restart: unless-stopped

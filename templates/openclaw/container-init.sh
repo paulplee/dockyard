@@ -21,3 +21,10 @@ if [ -f /home/${AGENT_USER}/.ssh/authorized_keys ]; then
     chmod 600 /home/${AGENT_USER}/.ssh/authorized_keys
     chown ${AGENT_USER}:${AGENT_USER} /home/${AGENT_USER}/.ssh/authorized_keys
 fi
+
+# Tighten OpenClaw state directory + config permissions (doctor warnings)
+if [ -d /home/${AGENT_USER}/.openclaw ]; then
+    chmod 700 /home/${AGENT_USER}/.openclaw
+    [ -f /home/${AGENT_USER}/.openclaw/openclaw.json ] && chmod 600 /home/${AGENT_USER}/.openclaw/openclaw.json
+    [ -d /home/${AGENT_USER}/.openclaw/credentials ] && chmod 700 /home/${AGENT_USER}/.openclaw/credentials
+fi
