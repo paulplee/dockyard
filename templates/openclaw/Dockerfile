@@ -36,6 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tmux \
     sudo \
     systemd systemd-sysv dbus libpam-systemd \
+    chromium \
     && rm -rf /var/lib/apt/lists/* \
     && systemctl enable ssh dbus \
     && for unit in \
@@ -76,6 +77,16 @@ RUN groupadd -g ${AGENT_UID} ${AGENT_USER} \
     && echo "${AGENT_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${AGENT_USER} \
     && chmod 0440 /etc/sudoers.d/${AGENT_USER}
 
+# ── Homebrew (Linuxbrew) ─────────────────────────────────────────────────────
+# Installed as a git clone so the agent can 'brew install' openclaw skills
+# without an interactive installer or sudo.
+RUN mkdir -p /home/linuxbrew/.linuxbrew \
+    && git clone --depth=1 https://github.com/Homebrew/brew \
+    /home/linuxbrew/.linuxbrew/Homebrew \
+    && mkdir -p /home/linuxbrew/.linuxbrew/bin \
+    && ln -sf ../Homebrew/bin/brew /home/linuxbrew/.linuxbrew/bin/brew \
+    && chown -R ${AGENT_USER}:${AGENT_USER} /home/linuxbrew
+
 # ── User-space setup (LazyVim + tmux) ────────────────────────────────────────
 USER ${AGENT_USER}
 
@@ -102,6 +113,8 @@ RUN mkdir -p /home/${AGENT_USER}/.config/tmux/plugins \
 # docker exec sessions that bypass PAM (libpam-systemd only sets it for
 # PAM-authenticated logins such as SSH; docker exec skips PAM entirely).
 RUN echo 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' \
+    >> /home/${AGENT_USER}/.bashrc \
+    && echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' \
     >> /home/${AGENT_USER}/.bashrc
 
 USER root
@@ -150,7 +163,8 @@ COPY openclaw-gateway.service /usr/local/share/dockyard/openclaw-gateway.service
 RUN mkdir -p /var/lib/systemd/linger \
     && touch /var/lib/systemd/linger/${AGENT_USER}
 
-ENV AGENT_USER=${AGENT_USER}
+ENV AGENT_USER=${AGENT_USER} \
+    CHROMIUM_PATH=/usr/bin/chromium
 
 EXPOSE ${SSH_PORT}
 

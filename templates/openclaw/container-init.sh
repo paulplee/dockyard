@@ -27,6 +27,21 @@ if [ -d /home/${AGENT_USER}/.openclaw ]; then
     [ -d /home/${AGENT_USER}/.openclaw/credentials ] && chmod 700 /home/${AGENT_USER}/.openclaw/credentials
 fi
 
+# Fix openclaw workspace path if it references a host path that doesn't exist
+# inside this container (e.g. /home/<host-user>/.openclaw/workspace persisted
+# from a host-side openclaw install into the bind-mounted volume).
+OPENCLAW_CONFIG="/home/${AGENT_USER}/.openclaw/openclaw.json"
+if [ -f "${OPENCLAW_CONFIG}" ]; then
+    WORKSPACE_PATH=$(jq -r '.workspace // empty' "${OPENCLAW_CONFIG}" 2>/dev/null || true)
+    if [ -n "${WORKSPACE_PATH}" ] && [ ! -d "$(dirname "${WORKSPACE_PATH}")" ]; then
+        echo ">>> Fixing openclaw workspace path: ${WORKSPACE_PATH} → /workspace"
+        jq '.workspace = "/workspace"' "${OPENCLAW_CONFIG}" > "${OPENCLAW_CONFIG}.tmp" \
+            && mv "${OPENCLAW_CONFIG}.tmp" "${OPENCLAW_CONFIG}" \
+            && chown ${AGENT_USER}:${AGENT_USER} "${OPENCLAW_CONFIG}" \
+            && chmod 600 "${OPENCLAW_CONFIG}"
+    fi
+fi
+
 # Install openclaw-gateway systemd user service into bind-mounted ~/.config
 SVC_DIR="/home/${AGENT_USER}/.config/systemd/user"
 if [ ! -f "${SVC_DIR}/openclaw-gateway.service" ]; then
