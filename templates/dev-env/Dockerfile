@@ -45,12 +45,14 @@ RUN ln -sf /usr/bin/batcat /usr/local/bin/bat
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
 # ── Neovim (latest stable) ──────────────────────────────────────────────────
-# Resolve the Neovim release tarball name for the current build architecture.
-# Docker sets TARGETARCH to "amd64" or "arm64"; map that to the nvim asset name.
-RUN case "$(uname -m)" in \
-    x86_64)  NVIM_ARCH=nvim-linux-x86_64 ;; \
-    aarch64) NVIM_ARCH=nvim-linux-arm64  ;; \
-    *) echo "Unsupported arch: $(uname -m)" && exit 1 ;; \
+# Resolve the Neovim release tarball name for the target build architecture.
+# TARGETARCH is set by Docker BuildKit ("amd64"/"arm64"); uname -m is the
+# fallback for native builds without buildx ("x86_64"/"aarch64").
+ARG TARGETARCH
+RUN case "${TARGETARCH:-$(uname -m)}" in \
+    amd64|x86_64)  NVIM_ARCH=nvim-linux-x86_64 ;; \
+    arm64|aarch64) NVIM_ARCH=nvim-linux-arm64  ;; \
+    *) echo "Unsupported arch: ${TARGETARCH:-$(uname -m)}" && exit 1 ;; \
     esac \
     && curl -fsSL \
     "https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/${NVIM_ARCH}.tar.gz" \

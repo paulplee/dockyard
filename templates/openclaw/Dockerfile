@@ -64,11 +64,19 @@ RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \
     && npm install -g openclaw@latest
 
 # ── Neovim (latest stable) ──────────────────────────────────────────────────
-RUN curl -fsSL \
-    "https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/nvim-linux-x86_64.tar.gz" \
+# TARGETARCH is set by Docker BuildKit ("amd64"/"arm64"); uname -m is the
+# fallback for native builds without buildx ("x86_64"/"aarch64").
+ARG TARGETARCH
+RUN case "${TARGETARCH:-$(uname -m)}" in \
+    amd64|x86_64)  NVIM_ARCH=nvim-linux-x86_64 ;; \
+    arm64|aarch64) NVIM_ARCH=nvim-linux-arm64  ;; \
+    *) echo "Unsupported arch: ${TARGETARCH:-$(uname -m)}" && exit 1 ;; \
+    esac \
+    && curl -fsSL \
+    "https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/${NVIM_ARCH}.tar.gz" \
     -o /tmp/nvim.tar.gz \
     && tar -C /opt -xzf /tmp/nvim.tar.gz \
-    && ln -sf /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim \
+    && ln -sf /opt/${NVIM_ARCH}/bin/nvim /usr/local/bin/nvim \
     && rm /tmp/nvim.tar.gz
 
 # ── Agent OS user ────────────────────────────────────────────────────────────
