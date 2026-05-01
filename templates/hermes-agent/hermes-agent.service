@@ -1,0 +1,17 @@
+[Unit]
+Description=Hermes Agent (Nous Research)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+Environment=PATH=/home/${AGENT_USER}/.hermes-venv/bin:/home/${AGENT_USER}/.local/bin:/home/${AGENT_USER}/.npm-global/bin:/home/${AGENT_USER}/bin:/usr/local/bin:/usr/bin:/bin
+Environment=VENV=/home/${AGENT_USER}/.hermes-venv
+ExecStart=/home/${AGENT_USER}/.hermes-venv/bin/hermes-agent run --workspace /workspace
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

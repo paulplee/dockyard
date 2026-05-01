@@ -1,0 +1,13 @@
+[Unit]
+Description=Container initialization (SSH host keys and volume permissions)
+Before=ssh.service
+After=local-fs.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/container-init.sh
+
+[Install]
+WantedBy=multi-user.target

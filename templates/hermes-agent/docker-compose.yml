@@ -1,0 +1,55 @@
+# =============================================================================
+# dockyard / hermes-agent — Docker Compose
+# Nous Research Hermes Agent — Autonomous coding agent.
+# All instance-specific values come from .env (at VOLUMES_BASE).
+# =============================================================================
+name: hermes-agent
+
+services:
+  hermes-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        AGENT_USER: "${AGENT_USER}"
+        AGENT_UID: "${AGENT_UID}"
+        NEOVIM_VERSION: "0.12.1"
+        SSH_PORT: "22"
+    container_name: dy-${CONTAINER_NAME}
+    hostname: ${CONTAINER_NAME}
+    restart: unless-stopped
+    privileged: true
+    cgroup: host
+    stop_signal: SIGRTMIN+3
+    tmpfs:
+      - /run
+      - /run/lock
+      - /tmp:exec
+    ports:
+      - "127.0.0.1:${SSH_PORT}:22"
+    volumes:
+      - ${VOLUMES_BASE}/workspace:/workspace
+      - ${VOLUMES_BASE}/hermes:/home/${AGENT_USER}/.hermes
+      - ${VOLUMES_BASE}/hermes-venv:/home/${AGENT_USER}/.hermes-venv
+      - ${VOLUMES_BASE}/config:/home/${AGENT_USER}/.config
+      - ${VOLUMES_BASE}/hermes-data:/home/${AGENT_USER}/.hermes-agent
+      - ${VOLUMES_BASE}/nvim-data:/home/${AGENT_USER}/.local/share/nvim
+      - ${VOLUMES_BASE}/nvim-state:/home/${AGENT_USER}/.local/state/nvim
+      - ${VOLUMES_BASE}/ssh/authorized_keys:/home/${AGENT_USER}/.ssh/authorized_keys
+      - ${VOLUMES_BASE}/secrets:/secrets:ro
+      - ${VOLUMES_BASE}/logs:/logs
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    environment:
+      CONTAINER_NAME: "${CONTAINER_NAME}"
+      AGENT_USER: "${AGENT_USER}"
+      LITELLM_BASE_URL: "http://host.gateway.internal:4000"
+    extra_hosts:
+      - "host.gateway.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 16G
+        reservations:
+          cpus: "0.5"
+          memory: 512M

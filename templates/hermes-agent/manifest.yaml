@@ -1,0 +1,34 @@
+# =============================================================================
+# dockyard / hermes-agent — Nous Research Hermes Agent
+# Autonomous coding agent powered by the Hermes Agent framework.
+# Extends dev-env with Python-based Hermes Agent tooling and systemd support.
+# =============================================================================
+name: hermes-agent
+description: Autonomous coding agent powered by Nous Research Hermes Agent framework
+
+# Directories created under $VOLUMES_BASE; first group is owned by the agent
+# user (mode 2770), second group stays root-owned.
+agent_dirs:
+  - config
+  - hermes
+  - hermes-data
+  - hermes-venv
+  - nvim-data
+  - nvim-state
+  - workspace
+  - logs
+root_dirs:
+  - ssh
+  - secrets
+
+# Files copied from the shared/ tree into the build staging directory before
+# `docker compose build` runs. Paths are relative to the repo root.
+shared_files:
+  - src: shared/entrypoint.sh
+    dst: entrypoint.sh
+  - src: shared/boot-seed.sh
+    dst: boot-seed.sh
+
+host_files:
+  - src: env.example
+    dst: secrets/env.example

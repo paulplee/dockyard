@@ -29,10 +29,12 @@ ssh dy-<your-container-name>
 |---|---|---|
 | [dev-env](templates/dev-env/) | SSH dev box: Neovim, tmux, Python, Node.js | Ready |
 | [openclaw](templates/openclaw/) | Autonomous coding agent with LLM tooling | Ready |
+| [hermes-agent](templates/hermes-agent/) | Nous Research Hermes Agent — Python-based autonomous coding agent | Ready |
 
 ```
 $ dockyard templates
   dev-env       Plain SSH-accessible development environment (no agent)
+  hermes-agent  Autonomous coding agent powered by Nous Research Hermes Agent framework
   openclaw      Autonomous coding agent with LLM access (systemd + openclaw CLI)
 ```
 
@@ -115,6 +117,7 @@ dockyard/
 ├── assets.go                  # go:embed for templates/ and shared/
 ├── templates/
 │   ├── dev-env/               # Plain dev environment
+│   ├── hermes-agent/          # Nous Research Hermes Agent
 │   └── openclaw/              # Autonomous coding agent
 └── shared/
     └── entrypoint.sh          # Common startup script

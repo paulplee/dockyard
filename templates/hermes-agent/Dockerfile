@@ -1,6 +1,6 @@
 # =============================================================================
-# dockyard / openclaw — Autonomous coding agent
-# Extends dev-env with LLM client libraries and agent tooling.
+# dockyard / hermes-agent — Nous Research Hermes Agent
+# Extends dev-env with Python-based Hermes Agent framework.
 # Base    : debian:trixie-slim  (Debian 13)
 # =============================================================================
 FROM debian:trixie-slim
@@ -29,14 +29,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bash curl wget git unzip tar gzip \
     openssh-server \
     build-essential cmake ninja-build pkg-config \
-    python3 python3-pip python3-venv python3-dev \
+    python3 python3-venv python3-dev \
+    python3-pip \
     bat \
     ripgrep fd-find fzf jq htop btop procps tree \
     ca-certificates dnsutils iputils-ping \
     tmux \
     sudo \
     systemd systemd-sysv dbus libpam-systemd \
-    chromium \
     && rm -rf /var/lib/apt/lists/* \
     && systemctl enable ssh dbus \
     && for unit in \
@@ -49,18 +49,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 'bat' is installed as 'batcat' on Debian — alias it
 RUN ln -sf /usr/bin/batcat /usr/local/bin/bat
-
-# ── uv (Python package manager) ─────────────────────────────────────────────
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
-
-# ── Node.js + openclaw CLI ───────────────────────────────────────────────────
-# NODE_MAJOR: 24 (default, OpenClaw recommended) or 22 LTS.
-# Note: Node 24 has a jiti/V8 regression on Westmere/Sandy Bridge era x86 CPUs
-# that makes openclaw CLI ~2× slower. Use NODE_MAJOR=22 on such hardware.
-ARG NODE_MAJOR=24
-RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/*
 
 # ── Neovim (latest stable) ──────────────────────────────────────────────────
 # TARGETARCH is set by Docker BuildKit ("amd64"/"arm64"); uname -m is the
@@ -83,16 +71,6 @@ RUN groupadd -g ${AGENT_UID} ${AGENT_USER} \
     && useradd -m -u ${AGENT_UID} -g ${AGENT_USER} -s /bin/bash ${AGENT_USER} \
     && echo "${AGENT_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${AGENT_USER} \
     && chmod 0440 /etc/sudoers.d/${AGENT_USER}
-
-# ── Homebrew (Linuxbrew) ─────────────────────────────────────────────────────
-# Installed as a git clone so the agent can 'brew install' openclaw skills
-# without an interactive installer or sudo.
-RUN mkdir -p /home/linuxbrew/.linuxbrew \
-    && git clone --depth=1 https://github.com/Homebrew/brew \
-    /home/linuxbrew/.linuxbrew/Homebrew \
-    && mkdir -p /home/linuxbrew/.linuxbrew/bin \
-    && ln -sf ../Homebrew/bin/brew /home/linuxbrew/.linuxbrew/bin/brew \
-    && chown -R ${AGENT_USER}:${AGENT_USER} /home/linuxbrew
 
 # ── User-space setup (LazyVim + tmux) ────────────────────────────────────────
 USER ${AGENT_USER}
@@ -120,17 +98,29 @@ RUN mkdir -p /home/${AGENT_USER}/.config/tmux/plugins \
 # docker exec sessions that bypass PAM (libpam-systemd only sets it for
 # PAM-authenticated logins such as SSH; docker exec skips PAM entirely).
 RUN echo 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' \
-    >> /home/${AGENT_USER}/.bashrc \
-    && echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' \
-    >> /home/${AGENT_USER}/.bashrc \
-    && echo 'export PATH="$HOME/.local/bin:$PATH"' \
     >> /home/${AGENT_USER}/.bashrc
 
-# ── openclaw (user-local so 'openclaw update' works without sudo) ─────────────
-RUN npm config set prefix /home/${AGENT_USER}/.local \
-    && npm install -g openclaw@latest
-
 USER root
+
+# ── Python virtual environment with Hermes Agent ─────────────────────────────
+# Venv lives in the agent user's home so it can be bind-mounted as a volume
+# and survive container rebuilds. A seed copy is kept in /opt/hermes-venv-seed
+# so container-init.sh can populate an empty volume on first boot.
+RUN python3 -m venv /home/${AGENT_USER}/.hermes-venv \
+    && /home/${AGENT_USER}/.hermes-venv/bin/pip install --no-cache-dir \
+    git+https://github.com/NousResearch/hermes-agent.git@main \
+    openai \
+    anthropic \
+    litellm \
+    httpx \
+    pydantic \
+    structlog \
+    rich \
+    tenacity \
+    python-telegram-bot \
+    && chown -R ${AGENT_USER}:${AGENT_USER} /home/${AGENT_USER}/.hermes-venv \
+    && cp -a /home/${AGENT_USER}/.hermes-venv /opt/hermes-venv-seed \
+    && rm -rf /root/.cache
 
 # ── SSH hardening ────────────────────────────────────────────────────────────
 RUN mkdir -p /var/run/sshd \
@@ -149,35 +139,34 @@ RUN mkdir -p /home/${AGENT_USER}/.ssh \
     && chmod 700 /home/${AGENT_USER}/.ssh
 
 # ── Workspace layout ────────────────────────────────────────────────────────
+# /workspace  — persistent code & data (bind-mounted from host)
+# /secrets    — read-only API keys / tokens
+# /logs       — structured log output
 RUN mkdir -p /workspace /secrets /logs \
     && chown ${AGENT_USER}:${AGENT_USER} /workspace /logs \
     && chmod 750 /secrets
 
-# ── OpenClaw-specific Python packages ────────────────────────────────────────
-COPY requirements.txt /tmp/requirements.txt
-RUN uv pip install --system --break-system-packages --no-cache -r /tmp/requirements.txt \
-    && rm /tmp/requirements.txt
-
-# ── Container init script + boot-seed + systemd unit ─────────────────────────
-COPY container-init.sh /usr/local/sbin/container-init.sh
-COPY boot-seed.sh /boot-seed.sh
-COPY container-init.service /etc/systemd/system/container-init.service
-RUN chmod 755 /usr/local/sbin/container-init.sh /boot-seed.sh \
-    && mkdir -p /etc/systemd/system/multi-user.target.wants \
-    && ln -sf /etc/systemd/system/container-init.service \
-    /etc/systemd/system/multi-user.target.wants/container-init.service
-
-# ── OpenClaw gateway systemd user service ─────────────────────────────────────
+# ── Hermes Agent systemd service ─────────────────────────────────────────────
 # Installed to a stable image path; container-init.sh links it into the
 # bind-mounted ~/.config/systemd/user/ on each boot.
-COPY openclaw-gateway.service /usr/local/share/dockyard/openclaw-gateway.service
+COPY hermes-agent.service /usr/local/share/dockyard/hermes-agent.service
 
 # Enable linger so user services start on boot without an interactive login
 RUN mkdir -p /var/lib/systemd/linger \
     && touch /var/lib/systemd/linger/${AGENT_USER}
 
+# ── Container init script + boot-seed ────────────────────────────────────────
+COPY container-init.sh /usr/local/sbin/container-init.sh
+COPY container-init.service /etc/systemd/system/container-init.service
+COPY boot-seed.sh /boot-seed.sh
+RUN chmod 755 /usr/local/sbin/container-init.sh /boot-seed.sh \
+    && mkdir -p /etc/systemd/system/multi-user.target.wants \
+    && ln -sf /etc/systemd/system/container-init.service \
+    /etc/systemd/system/multi-user.target.wants/container-init.service
+
 ENV AGENT_USER=${AGENT_USER} \
-    CHROMIUM_PATH=/usr/bin/chromium
+    HERMES_VENV=/home/${AGENT_USER}/.hermes-venv \
+    PATH=/home/${AGENT_USER}/.hermes-venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 EXPOSE ${SSH_PORT}
 
