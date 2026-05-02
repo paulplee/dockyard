@@ -9,9 +9,6 @@ ARG AGENT_USER=agent
 ARG AGENT_UID=1100
 ARG NEOVIM_VERSION=0.12.1
 ARG SSH_PORT=22
-# Changing this value busts the Docker layer cache for the openclaw npm install
-# step, forcing npm to re-fetch openclaw on the next `dockyard deploy`.
-ARG OPENCLAW_VERSION=latest
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
@@ -131,7 +128,7 @@ RUN echo 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' \
 
 # ── openclaw (user-local so 'openclaw update' works without sudo) ─────────────
 RUN npm config set prefix /home/${AGENT_USER}/.local \
-    && npm install -g openclaw@${OPENCLAW_VERSION}
+    && npm install -g openclaw@latest
 
 USER root
 

@@ -6,7 +6,7 @@ After=network-online.target
 [Service]
 Type=simple
 Environment=PATH=%h/.local/bin:%h/.npm-global/bin:%h/bin:%h/.volta/bin:%h/.asdf/shims:%h/.bun/bin:%h/.nvm/current/bin:%h/.fnm/current/bin:%h/.local/share/pnpm:/usr/local/bin:/usr/bin:/bin
-ExecStart=%h/.local/bin/openclaw gateway
+ExecStart=/usr/bin/openclaw gateway
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
