@@ -24,6 +24,9 @@ build_args:
     help: |
       24 — Current (recommended by OpenClaw)
       22 — LTS (use on older CPUs: Westmere / Sandy Bridge era)
+  - name: OPENCLAW_VERSION
+    prompt: "OpenClaw npm version to install (e.g. latest, 2026.4.29)"
+    default: "latest"
 
 # Files copied from the shared/ tree into the build staging directory before
 # `docker compose build` runs. Paths are relative to the repo root.
