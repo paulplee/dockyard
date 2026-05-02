@@ -15,6 +15,7 @@ services:
         AGENT_UID: "${AGENT_UID}"
         NEOVIM_VERSION: "0.12.1"
         SSH_PORT: "22"
+        HERMES_VERSION: "${HERMES_VERSION:-main}"
     container_name: dy-${CONTAINER_NAME}
     hostname: ${CONTAINER_NAME}
     restart: unless-stopped
@@ -27,6 +28,7 @@ services:
       - /tmp:exec
     ports:
       - "127.0.0.1:${SSH_PORT}:22"
+      - "${DASHBOARD_PORT:-9119}:9119"
     volumes:
       - ${VOLUMES_BASE}/workspace:/workspace
       - ${VOLUMES_BASE}/hermes:/home/${AGENT_USER}/.hermes

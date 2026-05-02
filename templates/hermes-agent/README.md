@@ -8,16 +8,21 @@ Extends the [dev-env](../dev-env/) base with Python 3, the [Hermes Agent](https:
 dockyard create hermes-agent <your-container-name>
 dockyard deploy <your-container-name>
 ssh dy-<your-container-name>
+hermes setup          # first-time: choose provider and model
+hermes                # start chatting
 ```
+
+The web dashboard auto-starts at `http://<host-ip>:9119` (default port).
 
 ## What's Added (vs dev-env)
 
 | Component | Purpose |
 |---|---|
-| Python 3 (11/12/13) | Runtime for the Hermes Agent framework |
-| hermes-agent | Autonomous agent orchestration |
-| systemd | PID 1 — manages hermes-agent as a user service |
-| container-init.sh | Oneshot: SSH host-key generation, boot-seed, permission fixes, user systemd instance start |
+| Python 3 | Runtime for the Hermes Agent framework |
+| hermes-agent `[web]` | Autonomous agent + web dashboard |
+| nodejs / npm | Required to build the dashboard frontend |
+| systemd | PID 1 — manages hermes-agent and dashboard as user services |
+| container-init.sh | Oneshot: venv seeding, service install, service start |
 
 ### Python Packages
 
@@ -29,29 +34,103 @@ ssh dy-<your-container-name>
 | pydantic | Structured data validation |
 | structlog, rich | Logging and terminal output |
 | tenacity | Retry logic |
+| python-telegram-bot | Telegram gateway support |
 
 ## Persistent Volumes
 
-| Directory | Container Mount | Owner |
+Everything that Hermes creates — config, memory, skills, sessions, kanban, plugins, cron jobs, conversation history — lives inside `~/.hermes`. That single directory is bind-mounted to the host so **nothing is lost across container restarts or image rebuilds**.
+
+| Host path (under `VOLUMES_BASE`) | Container mount | What lives here |
 |---|---|---|
-| `config/` | `~/.config` | agent (2770) |
-| `hermes-data/` | `~/.hermes-agent` | agent (2770) |
-| `workspace/` | `/workspace` | agent (2770) |
-| `nvim-data/` | `~/.local/share/nvim` | agent (2770) |
-| `nvim-state/` | `~/.local/state/nvim` | agent (2770) |
-| `logs/` | `/logs` | agent (2770) |
-| `secrets/` | `/secrets` (read-only) | root (750) |
-| `ssh/authorized_keys` | `~/.ssh/authorized_keys` | agent |
+| `hermes/` | `~/.hermes` | **All Hermes data** (see breakdown below) |
+| `hermes-venv/` | `~/.hermes-venv` | Python virtualenv with hermes-agent installed |
+| `config/` | `~/.config` | Neovim, tmux, and other tool config |
+| `workspace/` | `/workspace` | Code, projects, files the agent works on |
+| `nvim-data/` | `~/.local/share/nvim` | Neovim plugin data |
+| `nvim-state/` | `~/.local/state/nvim` | Neovim state |
+| `logs/` | `/logs` | System/container log output |
+| `secrets/` | `/secrets` (read-only) | API keys and tokens |
+| `ssh/authorized_keys` | `~/.ssh/authorized_keys` | SSH public keys for login |
+
+### What's inside `~/.hermes`
+
+The `hermes/` volume is the single source of truth for Hermes state. Nothing in this directory is ever lost on restart or upgrade:
+
+| Path | Contents | Risk if lost |
+|---|---|---|
+| `config.yaml` | Provider, model, tool, and feature config | Must re-run `hermes setup` |
+| `SOUL.md` | Agent personality / persona | Personality reset to default |
+| `memories/` | Persistent memory (`MEMORY.md`, `USER.md`) | Agent loses what it knows about you |
+| `skills/` | Agent-created and user-created skills | All procedural memory lost |
+| `state.db` | SQLite — kanban boards, session metadata | Kanban and session index lost |
+| `sessions/` | Full conversation history (FTS5 searchable) | Chat history lost |
+| `plugins/` | Installed plugins | Plugins must be reinstalled |
+| `cron/` | Scheduled automation jobs | All scheduled tasks lost |
+| `auth.json` | Provider auth tokens | Must re-authenticate |
+| `sandboxes/` | Docker terminal backend metadata | Sandbox references lost |
+| `logs/` | Hermes-internal logs | (safe to lose) |
+| `profiles/` | Per-profile data (if using `hermes profile`) | All profiles lost |
+
+> **Note**: `hermes-data/` maps `~/.hermes-agent` which Hermes does not currently use — it is reserved for future use and will remain empty.
+
+## Updating Hermes Agent
+
+Hermes is installed from git at image build time. Docker layer caching means `dockyard deploy` alone will **not** pull a newer version unless you bust the cache by changing `HERMES_VERSION`.
+
+### To update to the latest `main`
+
+1. Edit `HERMES_VERSION` in `/opt/dckyard/<name>/secrets/env` (or `config.yaml`) to any new value — e.g. append today's date:
+   ```
+   HERMES_VERSION=main-20260503
+   ```
+2. Delete the staged build directory and redeploy:
+   ```bash
+   sudo rm -rf /opt/dckyard/<name>/build
+   dockyard deploy <name>
+   ```
+   Docker sees a changed `ARG`, busts the venv layer cache, re-runs `pip install` and `npm run build`. The new venv seed is written to the image; on next boot, `container-init.sh` detects the changed build stamp and re-seeds the live venv volume.
+
+### To pin to a specific release
+
+Set `HERMES_VERSION` to a tag (e.g. `v2026.4.30`) and redeploy as above. Downgrading works the same way.
+
+### What the update replaces vs preserves
+
+| Item | After update |
+|---|---|
+| Python packages (hermes-agent, deps) | ✅ Updated to new version |
+| Dashboard frontend (`web_dist/`) | ✅ Rebuilt from source — frontend matches backend |
+| `~/.hermes/` (all user data) | ✅ Untouched — bind mount survives rebuild |
+| Neovim config, tmux config | ✅ Untouched — bind mount |
+| Workspace files | ✅ Untouched — bind mount |
 
 ## First-Boot Seeding
 
-On first start, `container-init.sh` sources `boot-seed.sh` which:
+On every container start, `container-init.sh` runs as a systemd oneshot:
 
-- Seeds **LazyVim** starter config into `~/.config/nvim/` (skipped if `init.lua` already exists)
-- Seeds **TPM** (Tmux Plugin Manager) into `~/.config/tmux/plugins/tpm/` (skipped if already present)
-- Installs the **hermes-agent** systemd user service into `~/.config/systemd/user/` (skipped if already present)
+1. Compares the image build stamp against the live venv stamp — if different, re-seeds the venv from `/opt/hermes-venv-seed` into `~/.hermes-venv` (preserving user site-packages changes is not supported; the seed always wins when the stamp changes).
+2. Installs `hermes-agent.service` and `hermes-dashboard.service` into `~/.config/systemd/user/` if not present.
+3. Starts both user services.
 
-All seeding is idempotent — existing config is never overwritten.
+All steps are idempotent — if the stamp matches and services are already installed, boot is instant.
+
+## Services
+
+Two systemd user services run inside the container:
+
+| Service | Command | Purpose |
+|---|---|---|
+| `hermes-agent.service` | `hermes gateway run` | Telegram / Discord / Slack gateway |
+| `hermes-dashboard.service` | `hermes dashboard --host 0.0.0.0 --no-open --insecure` | Web dashboard on port 9119 |
+
+Check status:
+```bash
+systemctl --user status hermes-agent.service
+systemctl --user status hermes-dashboard.service
+journalctl --user -u hermes-dashboard.service -f
+```
+
+> **Security**: The dashboard is exposed on all interfaces (`0.0.0.0`) with `--insecure` — suitable for a trusted LAN only. For internet-facing deployments, put it behind a reverse proxy with authentication, or access it via SSH tunnel: `ssh -L 9119:localhost:9119 dy-<name>`.
 
 ## Secrets
 
@@ -79,33 +158,3 @@ Default limits set in docker-compose.yml:
 |---|---|---|
 | CPU | 4 cores | 0.5 cores |
 | Memory | 16 GB | 512 MB |
-
-Override in docker-compose.yml or via `dockyard deploy` config.
-
-## Configuration
-
-Hermes Agent configuration is stored in `~/.hermes-agent/` (persistent volume). Key configuration options:
-
-| Environment Variable | Purpose | Default |
-|---|---|---|
-| `HERMES_MODEL` | LLM model to use | `openai/gpt-4o` |
-| `HERMES_MODE` | Agent operation mode | `autonomous` |
-| `LITELLM_BASE_URL` | LiteLLM proxy endpoint | `http://host.gateway.internal:4000` |
-
-## Agent Modes
-
-| Mode | Description |
-|---|---|
-| `autonomous` | Full autonomous operation, agent makes all decisions |
-| `assistant` | Semi-autonomous, seeks confirmation for major actions |
-| `interactive` | Human-in-the-loop, requires approval for each step |
-
-## Comparison: hermes-agent vs openclaw
-
-| Feature | hermes-agent | openclaw |
-|---|---|---|
-| Language | Python | Node.js |
-| Framework | Hermes Agent (Nous Research) | OpenClaw |
-| Package Manager | pip (venv) | npm |
-| Browser Automation | Via tool plugins | Chromium (built-in) |
-| Task Queue | Via litellm/external | Celery + Redis |

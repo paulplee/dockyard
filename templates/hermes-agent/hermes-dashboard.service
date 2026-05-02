@@ -1,5 +1,5 @@
 [Unit]
-Description=Hermes Agent (Nous Research)
+Description=Hermes Agent Web Dashboard
 Wants=network-online.target
 After=network-online.target
 
@@ -7,7 +7,7 @@ After=network-online.target
 Type=simple
 Environment=PATH=%h/.hermes-venv/bin:%h/.local/bin:%h/.npm-global/bin:%h/bin:/usr/local/bin:/usr/bin:/bin
 Environment=VENV=%h/.hermes-venv
-ExecStart=%h/.hermes-venv/bin/hermes-agent run --workspace /workspace
+ExecStart=%h/.hermes-venv/bin/hermes dashboard --host 0.0.0.0 --no-open --insecure
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal

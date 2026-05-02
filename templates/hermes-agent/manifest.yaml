@@ -29,6 +29,14 @@ shared_files:
   - src: shared/boot-seed.sh
     dst: boot-seed.sh
 
+build_args:
+  - name: DASHBOARD_PORT
+    prompt: "Dashboard port on host"
+    default: "9119"
+  - name: HERMES_VERSION
+    prompt: "Hermes Agent git ref to install (branch, tag, or commit)"
+    default: "main"
+
 host_files:
   - src: env.example
     dst: secrets/env.example

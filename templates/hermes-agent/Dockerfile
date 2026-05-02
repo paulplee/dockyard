@@ -9,6 +9,9 @@ ARG AGENT_USER=agent
 ARG AGENT_UID=1100
 ARG NEOVIM_VERSION=0.12.1
 ARG SSH_PORT=22
+# Changing this value busts the Docker layer cache for the venv build step,
+# forcing pip to re-fetch hermes-agent from git on the next `dockyard deploy`.
+ARG HERMES_VERSION=main
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
@@ -31,6 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake ninja-build pkg-config \
     python3 python3-venv python3-dev \
     python3-pip \
+    nodejs npm \
     bat \
     ripgrep fd-find fzf jq htop btop procps tree \
     ca-certificates dnsutils iputils-ping \
@@ -108,7 +112,7 @@ USER root
 # so container-init.sh can populate an empty volume on first boot.
 RUN python3 -m venv /home/${AGENT_USER}/.hermes-venv \
     && /home/${AGENT_USER}/.hermes-venv/bin/pip install --no-cache-dir \
-    git+https://github.com/NousResearch/hermes-agent.git@main \
+    "hermes-agent[web] @ git+https://github.com/NousResearch/hermes-agent.git@${HERMES_VERSION}" \
     openai \
     anthropic \
     litellm \
@@ -118,9 +122,16 @@ RUN python3 -m venv /home/${AGENT_USER}/.hermes-venv \
     rich \
     tenacity \
     python-telegram-bot \
+    && SITE_PKG=$(/home/${AGENT_USER}/.hermes-venv/bin/python3 -c "import site; print(site.getsitepackages()[0])") \
+    && git clone --depth 1 --branch "${HERMES_VERSION}" https://github.com/NousResearch/hermes-agent.git /tmp/hermes-agent-web-src \
+    && npm --prefix /tmp/hermes-agent-web-src/web install \
+    && npm --prefix /tmp/hermes-agent-web-src/web run build \
+    && cp -r /tmp/hermes-agent-web-src/hermes_cli/web_dist "${SITE_PKG}/hermes_cli/" \
+    && rm -rf /tmp/hermes-agent-web-src \
     && chown -R ${AGENT_USER}:${AGENT_USER} /home/${AGENT_USER}/.hermes-venv \
     && cp -a /home/${AGENT_USER}/.hermes-venv /opt/hermes-venv-seed \
-    && rm -rf /root/.cache
+    && date -u +%Y%m%dT%H%M%SZ > /opt/hermes-venv-seed/.hermes-venv-buildtime \
+    && rm -rf /root/.cache /root/.npm
 
 # ── SSH hardening ────────────────────────────────────────────────────────────
 RUN mkdir -p /var/run/sshd \
@@ -150,6 +161,7 @@ RUN mkdir -p /workspace /secrets /logs \
 # Installed to a stable image path; container-init.sh links it into the
 # bind-mounted ~/.config/systemd/user/ on each boot.
 COPY hermes-agent.service /usr/local/share/dockyard/hermes-agent.service
+COPY hermes-dashboard.service /usr/local/share/dockyard/hermes-dashboard.service
 
 # Enable linger so user services start on boot without an interactive login
 RUN mkdir -p /var/lib/systemd/linger \
