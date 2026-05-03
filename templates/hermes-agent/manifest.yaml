@@ -36,6 +36,9 @@ build_args:
   - name: HERMES_VERSION
     prompt: "Hermes Agent git ref to install (branch, tag, or commit)"
     default: "main"
+  - name: DNS_SERVER
+    prompt: "Primary DNS server (LAN resolver)"
+    default: "10.10.1.2"
 
 host_files:
   - src: env.example

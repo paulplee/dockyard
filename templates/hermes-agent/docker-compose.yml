@@ -45,6 +45,9 @@ services:
       CONTAINER_NAME: "${CONTAINER_NAME}"
       AGENT_USER: "${AGENT_USER}"
       LITELLM_BASE_URL: "http://host.gateway.internal:4000"
+    dns:
+      - "${DNS_SERVER:-10.10.1.2}"
+      - "1.1.1.1"
     extra_hosts:
       - "host.gateway.internal:host-gateway"
     deploy:
@@ -55,3 +58,4 @@ services:
         reservations:
           cpus: "0.5"
           memory: 512M
+ 
