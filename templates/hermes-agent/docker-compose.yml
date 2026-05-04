@@ -30,7 +30,7 @@ services:
       - "127.0.0.1:${SSH_PORT}:22"
       - "${DASHBOARD_PORT:-9119}:9119"
     volumes:
-      - ${VOLUMES_BASE}/workspace:/workspace
+      - ${WORKSPACE_PATH}:/workspace
       - ${VOLUMES_BASE}/hermes:/home/${AGENT_USER}/.hermes
       - ${VOLUMES_BASE}/hermes-venv:/home/${AGENT_USER}/.hermes-venv
       - ${VOLUMES_BASE}/config:/home/${AGENT_USER}/.config

@@ -40,17 +40,19 @@ The web dashboard auto-starts at `http://<host-ip>:9119` (default port).
 
 Everything that Hermes creates — config, memory, skills, sessions, kanban, plugins, cron jobs, conversation history — lives inside `~/.hermes`. That single directory is bind-mounted to the host so **nothing is lost across container restarts or image rebuilds**.
 
-| Host path (under `VOLUMES_BASE`) | Container mount | What lives here |
+| Host path | Container mount | What lives here |
 |---|---|---|
-| `hermes/` | `~/.hermes` | **All Hermes data** (see breakdown below) |
-| `hermes-venv/` | `~/.hermes-venv` | Python virtualenv with hermes-agent installed |
-| `config/` | `~/.config` | Neovim, tmux, and other tool config |
-| `workspace/` | `/workspace` | Code, projects, files the agent works on |
-| `nvim-data/` | `~/.local/share/nvim` | Neovim plugin data |
-| `nvim-state/` | `~/.local/state/nvim` | Neovim state |
-| `logs/` | `/logs` | System/container log output |
-| `secrets/` | `/secrets` (read-only) | API keys and tokens |
-| `ssh/authorized_keys` | `~/.ssh/authorized_keys` | SSH public keys for login |
+| `$VOLUMES_BASE/hermes/` | `~/.hermes` | **All Hermes data** (see breakdown below) |
+| `$VOLUMES_BASE/hermes-venv/` | `~/.hermes-venv` | Python virtualenv with hermes-agent installed |
+| `$VOLUMES_BASE/config/` | `~/.config` | Neovim, tmux, and other tool config |
+| `$WORKSPACE_PATH` | `/workspace` | Code, projects, files the agent works on (local dir or NAS mount) |
+| `$VOLUMES_BASE/nvim-data/` | `~/.local/share/nvim` | Neovim plugin data |
+| `$VOLUMES_BASE/nvim-state/` | `~/.local/state/nvim` | Neovim state |
+| `$VOLUMES_BASE/logs/` | `/logs` | System/container log output |
+| `$VOLUMES_BASE/secrets/` | `/secrets` (read-only) | API keys and tokens |
+| `$VOLUMES_BASE/ssh/authorized_keys` | `~/.ssh/authorized_keys` | SSH public keys for login |
+
+`WORKSPACE_PATH` is a build arg set during `dockyard create`. The default is `$VOLUMES_BASE/workspace` (a local directory, appropriate for laptop deploys). For server deployments, set it to an NFS/CIFS mount point (e.g. `/mnt/workspace`) to share a workspace across containers.
 
 ### What's inside `~/.hermes`
 
@@ -79,13 +81,13 @@ Hermes is installed from git at image build time. Docker layer caching means `do
 
 ### To update to the latest `main`
 
-1. Edit `HERMES_VERSION` in `/opt/dckyard/<name>/secrets/env` (or `config.yaml`) to any new value — e.g. append today's date:
+1. Edit `HERMES_VERSION` in `/opt/dockyard/<name>/config.yaml` (`build_args.HERMES_VERSION`) to any new value — e.g. append today's date:
    ```
    HERMES_VERSION=main-20260503
    ```
 2. Delete the staged build directory and redeploy:
    ```bash
-   sudo rm -rf /opt/dckyard/<name>/build
+   sudo rm -rf /opt/dockyard/<name>/build
    dockyard deploy <name>
    ```
    Docker sees a changed `ARG`, busts the venv layer cache, re-runs `pip install` and `npm run build`. The new venv seed is written to the image; on next boot, `container-init.sh` detects the changed build stamp and re-seeds the live venv volume.

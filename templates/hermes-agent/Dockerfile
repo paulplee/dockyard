@@ -8,6 +8,7 @@ FROM debian:trixie-slim
 ARG AGENT_USER=agent
 ARG AGENT_UID=1100
 ARG NEOVIM_VERSION=0.12.1
+ARG GLOW_VERSION=2.1.0
 ARG SSH_PORT=22
 # Changing this value busts the Docker layer cache for the venv build step,
 # forcing pip to re-fetch hermes-agent from git on the next `dockyard deploy`.
@@ -37,6 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs npm \
     bat \
     ripgrep fd-find fzf jq htop btop procps tree \
+    less \
     ca-certificates dnsutils iputils-ping \
     tmux \
     sudo \
@@ -69,6 +71,21 @@ RUN case "${TARGETARCH:-$(uname -m)}" in \
     && tar -C /opt -xzf /tmp/nvim.tar.gz \
     && ln -sf /opt/${NVIM_ARCH}/bin/nvim /usr/local/bin/nvim \
     && rm /tmp/nvim.tar.gz
+
+# ── Glow (markdown renderer) ────────────────────────────────────────────────
+RUN case "${TARGETARCH:-$(uname -m)}" in \
+    amd64|x86_64)  GLOW_ARCH=x86_64 ;; \
+    arm64|aarch64) GLOW_ARCH=arm64  ;; \
+    *) echo "Unsupported arch: ${TARGETARCH:-$(uname -m)}" && exit 1 ;; \
+    esac \
+    && curl -fsSL \
+    "https://github.com/charmbracelet/glow/releases/download/v${GLOW_VERSION}/glow_${GLOW_VERSION}_Linux_${GLOW_ARCH}.tar.gz" \
+    -o /tmp/glow.tar.gz \
+    && mkdir -p /tmp/glow-extract \
+    && tar -C /tmp/glow-extract -xzf /tmp/glow.tar.gz \
+    && find /tmp/glow-extract -name 'glow' -type f -exec mv {} /usr/local/bin/glow \; \
+    && chmod 755 /usr/local/bin/glow \
+    && rm -rf /tmp/glow.tar.gz /tmp/glow-extract
 
 # ── Agent OS user ────────────────────────────────────────────────────────────
 RUN groupadd -g ${AGENT_UID} ${AGENT_USER} \

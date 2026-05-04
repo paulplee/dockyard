@@ -15,7 +15,6 @@ agent_dirs:
   - hermes-venv
   - nvim-data
   - nvim-state
-  - workspace
   - logs
 root_dirs:
   - ssh
@@ -33,6 +32,9 @@ build_args:
   - name: DASHBOARD_PORT
     prompt: "Dashboard port on host"
     default: "9119"
+  - name: WORKSPACE_PATH
+    prompt: "Workspace path on host (local dir or NAS mount)"
+    default: "{VOLUMES_BASE}/workspace"
   - name: HERMES_VERSION
     prompt: "Hermes Agent git ref to install (branch, tag, or commit)"
     default: "main"

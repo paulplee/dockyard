@@ -62,15 +62,19 @@ func newCreateCmd() *cobra.Command {
 			}
 
 			buildArgs := map[string]string{}
+			volumesBase := config.DeploymentDir(g.VolumesRoot, name)
 			for _, ba := range m.BuildArgs {
 				if ba.Help != "" {
 					p.Info("%s", ba.Help)
 				}
+				// Expand {VOLUMES_BASE} placeholder in defaults so manifests
+				// can reference the deployment's local volumes directory.
+				dflt := strings.ReplaceAll(ba.Default, "{VOLUMES_BASE}", volumesBase)
 				var val string
 				if len(ba.Options) > 0 {
-					val, err = p.Choice(ba.Prompt, ba.Options, ba.Default)
+					val, err = p.Choice(ba.Prompt, ba.Options, dflt)
 				} else {
-					val, err = p.String(ba.Prompt, ba.Default)
+					val, err = p.String(ba.Prompt, dflt)
 				}
 				if err != nil {
 					return err
