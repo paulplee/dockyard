@@ -50,7 +50,7 @@ Everything that Hermes creates — config, memory, skills, sessions, kanban, plu
 | `$VOLUMES_BASE/nvim-state/` | `~/.local/state/nvim` | Neovim state |
 | `$VOLUMES_BASE/logs/` | `/logs` | System/container log output |
 | `$VOLUMES_BASE/secrets/` | `/secrets` (read-only) | API keys and tokens |
-| `$VOLUMES_BASE/ssh/authorized_keys` | `~/.ssh/authorized_keys` | SSH public keys for login |
+| `$VOLUMES_BASE/ssh/` | `~/.ssh` | SSH authorized keys + persistent git identity keypair |
 
 `WORKSPACE_PATH` is a build arg set during `dockyard create`. The default is `$VOLUMES_BASE/workspace` (a local directory, appropriate for laptop deploys). For server deployments, set it to an NFS/CIFS mount point (e.g. `/mnt/workspace`) to share a workspace across containers.
 
@@ -74,6 +74,41 @@ The `hermes/` volume is the single source of truth for Hermes state. Nothing in 
 | `profiles/` | Per-profile data (if using `hermes profile`) | All profiles lost |
 
 > **Note**: `hermes-data/` maps `~/.hermes-agent` which Hermes does not currently use — it is reserved for future use and will remain empty.
+
+## Git SSH Access for the Agent
+
+On first boot, `container-init.sh` generates a persistent `ed25519` keypair at `~/.ssh/id_ed25519` (inside the `$VOLUMES_BASE/ssh/` bind mount) — so the key **survives reboots and container rebuilds**.
+
+If you pre-place your own `id_ed25519` + `id_ed25519.pub` in `$VOLUMES_BASE/ssh/` before starting, auto-generation is skipped.
+
+### Authorise the key on GitHub / GitLab
+
+1. Read the generated public key:
+   ```bash
+   cat /logs/git-ssh-pubkey.txt
+   ```
+   (Also available inside the container at `~/.ssh/id_ed25519.pub`.)
+
+2. Add it to your account:
+   - **GitHub**: Settings → SSH and GPG keys → New SSH key
+   - **GitLab**: Preferences → SSH Keys → Add key
+
+3. Verify from inside the container:
+   ```bash
+   ssh -T git@github.com
+   ssh -T git@gitlab.com
+   ```
+
+### Set commit identity
+
+Add to `/secrets/env` (see [Secrets](#secrets)):
+
+```bash
+GIT_AUTHOR_NAME=Hermes Agent
+GIT_AUTHOR_EMAIL=hermes@example.com
+```
+
+`container-init.sh` reads these on every boot and writes them to `~/.config/git/config`, which persists via the `config/` volume.
 
 ## Updating Hermes Agent
 
