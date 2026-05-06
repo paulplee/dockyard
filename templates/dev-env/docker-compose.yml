@@ -25,7 +25,7 @@ services:
       - ${VOLUMES_BASE}/config:/home/${AGENT_USER}/.config
       - ${VOLUMES_BASE}/nvim-data:/home/${AGENT_USER}/.local/share/nvim
       - ${VOLUMES_BASE}/nvim-state:/home/${AGENT_USER}/.local/state/nvim
-      - ${VOLUMES_BASE}/ssh/authorized_keys:/home/${AGENT_USER}/.ssh/authorized_keys
+      - ${VOLUMES_BASE}/ssh:/home/${AGENT_USER}/.ssh
       - ${VOLUMES_BASE}/secrets:/secrets:ro
       - ${VOLUMES_BASE}/logs:/logs
     environment:
