@@ -7,6 +7,11 @@ After=network-online.target
 Type=simple
 Environment=PATH=%h/.hermes-venv/bin:%h/.local/bin:%h/.npm-global/bin:%h/bin:/usr/local/bin:/usr/bin:/bin
 Environment=VENV=%h/.hermes-venv
+Environment=API_SERVER_ENABLED=${API_SERVER_ENABLED:-true}
+Environment=API_SERVER_HOST=${API_SERVER_HOST:-0.0.0.0}
+Environment=API_SERVER_PORT=8642
+Environment=API_SERVER_KEY=${API_SERVER_KEY:-changeme}
+Environment=API_SERVER_CORS_ORIGINS=${API_SERVER_CORS_ORIGINS:-*}
 ExecStart=%h/.hermes-venv/bin/hermes-agent run --workspace /workspace
 Restart=on-failure
 RestartSec=10

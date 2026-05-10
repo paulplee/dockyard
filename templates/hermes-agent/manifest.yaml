@@ -32,6 +32,9 @@ build_args:
   - name: DASHBOARD_PORT
     prompt: "Dashboard port on host"
     default: "9119"
+  - name: API_PORT
+    prompt: "API server port on host (for OpenAI-compatible clients like OpenWebUI, pi.dev)"
+    default: "8642"
   - name: WORKSPACE_PATH
     prompt: "Workspace path on host (local dir or NAS mount)"
     default: "{VOLUMES_BASE}/workspace"
