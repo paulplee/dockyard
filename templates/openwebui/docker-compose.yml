@@ -1,0 +1,44 @@
+# =============================================================================
+# dockyard / openwebui — Docker Compose
+# Open WebUI — browser chat interface for OpenAI-compatible API endpoints.
+# Connects to hermes-agent's built-in API server via host.gateway.internal.
+# All instance-specific values come from .env (at VOLUMES_BASE).
+# =============================================================================
+name: openwebui
+
+services:
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:latest
+    container_name: dy-${CONTAINER_NAME}
+    hostname: ${CONTAINER_NAME}
+    restart: unless-stopped
+    ports:
+      - "${WEBUI_PORT:-8643}:8080"
+    volumes:
+      - ${VOLUMES_BASE}/data:/app/backend/data
+    environment:
+      CONTAINER_NAME: "${CONTAINER_NAME}"
+      # Point to hermes-agent's OpenAI-compatible API server.
+      # HERMES_API_URL is set during `dockyard deploy`; default targets the
+      # standard hermes-agent API port on the Docker host gateway.
+      OPENAI_API_BASE_URL: "${HERMES_API_URL:-http://host.gateway.internal:8642/v1}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-changeme}"
+      # Disable Ollama — hermes-agent is the sole backend.
+      ENABLE_OLLAMA_API: "false"
+      ENABLE_OPENAI_API: "true"
+      # Authentication — leave enabled for internet-facing deployments.
+      WEBUI_AUTH: "${WEBUI_AUTH:-true}"
+      WEBUI_SECRET_KEY: "${WEBUI_SECRET_KEY:-changeme}"
+    dns:
+      - "${DNS_SERVER:-10.10.1.2}"
+      - "1.1.1.1"
+    extra_hosts:
+      - "host.gateway.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4G
+        reservations:
+          cpus: "0.25"
+          memory: 256M

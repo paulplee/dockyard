@@ -1,0 +1,31 @@
+# =============================================================================
+# dockyard / openwebui — Open WebUI
+# Browser-based chat interface for OpenAI-compatible API endpoints.
+# Pairs with hermes-agent to provide a UI over hermes's built-in API server.
+# Uses the official Open WebUI image — no custom Dockerfile required.
+# =============================================================================
+name: openwebui
+description: Open WebUI — browser chat interface for OpenAI-compatible API endpoints
+
+# No agent user dirs needed; OpenWebUI manages its own data directory as root.
+agent_dirs: []
+root_dirs:
+  - data
+
+# No custom build — official image is pulled directly by docker compose.
+shared_files: []
+
+build_args:
+  - name: WEBUI_PORT
+    prompt: "Open WebUI port on host"
+    default: "8643"
+  - name: HERMES_API_URL
+    prompt: "Hermes Agent API base URL (OpenAI-compatible endpoint, include /v1)"
+    default: "http://host.gateway.internal:8642/v1"
+  - name: DNS_SERVER
+    prompt: "Primary DNS server (LAN resolver)"
+    default: "10.10.1.2"
+
+host_files:
+  - src: env.example
+    dst: secrets/env.example
