@@ -13,6 +13,20 @@ dockyard deploy <your-container-name>
 
 Open WebUI will be available at `http://<host-ip>:8643` (default port).
 
+## Updating
+
+Pull the latest image and recreate the container — the bind-mounted data volume is preserved:
+
+```bash
+docker compose -f $VOLUMES_BASE/build/docker-compose.yml \
+  --env-file $VOLUMES_BASE/.env \
+  pull
+
+docker compose -f $VOLUMES_BASE/build/docker-compose.yml \
+  --env-file $VOLUMES_BASE/.env \
+  up -d --force-recreate
+```
+
 ## Connecting to hermes-agent
 
 The compose file targets `http://host.gateway.internal:8642/v1` by default — the standard port for hermes-agent's API server on the same Docker host. If you used a different `API_PORT` when deploying hermes-agent, update `HERMES_API_URL` in the `.env` file:
