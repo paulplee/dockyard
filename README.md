@@ -30,11 +30,13 @@ ssh dy-<your-container-name>
 | [dev-env](templates/dev-env/) | SSH dev box: Neovim, tmux, Python, Node.js | Ready |
 | [openclaw](templates/openclaw/) | Autonomous coding agent with LLM tooling | Ready |
 | [hermes-agent](templates/hermes-agent/) | Nous Research Hermes Agent — Python-based autonomous coding agent | Ready |
+| [litellm](templates/litellm/) | LiteLLM proxy gateway — routes LLM API calls through a VPS to mask origin | Ready |
 
 ```
 $ dockyard templates
   dev-env       Plain SSH-accessible development environment (no agent)
   hermes-agent  Autonomous coding agent powered by Nous Research Hermes Agent framework
+  litellm       LiteLLM proxy gateway — routes LLM API calls through a VPS to mask origin
   openclaw      Autonomous coding agent with LLM access (systemd + openclaw CLI)
 ```
 

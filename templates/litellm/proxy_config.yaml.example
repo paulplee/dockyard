@@ -1,0 +1,90 @@
+# =============================================================================
+# LiteLLM proxy config — copy this file to proxy_config.yaml and edit.
+#
+#   cp /volumes/config/proxy_config.yaml.example \
+#      /volumes/config/proxy_config.yaml
+#
+# Full reference: https://docs.litellm.ai/docs/proxy/configs
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Model list — define every model alias the proxy exposes to clients.
+# Clients call these aliases; LiteLLM routes to the real provider/model.
+# ---------------------------------------------------------------------------
+model_list:
+  # OpenAI
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  # Anthropic
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-4-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-haiku
+    litellm_params:
+      model: anthropic/claude-haiku-3-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # Google Gemini
+  - model_name: gemini-pro
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: os.environ/GEMINI_API_KEY
+
+  # Groq (fast inference)
+  - model_name: llama3-fast
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: os.environ/GROQ_API_KEY
+
+  # ---------------------------------------------------------------------------
+  # Fallback / catch-all router — expose a single "default" alias that tries
+  # providers in order. Useful for resilience against rate limits.
+  # ---------------------------------------------------------------------------
+  - model_name: default
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+# ---------------------------------------------------------------------------
+# Router settings
+# ---------------------------------------------------------------------------
+router_settings:
+  routing_strategy: simple-shuffle        # or: least-busy, latency-based-routing
+  num_retries: 3
+  retry_after: 5
+  allowed_fails: 2
+  cooldown_time: 30
+
+# ---------------------------------------------------------------------------
+# General proxy settings
+# ---------------------------------------------------------------------------
+general_settings:
+  # Master key — must match LITELLM_MASTER_KEY in secrets/env.
+  master_key: os.environ/LITELLM_MASTER_KEY
+  # Drop unsupported params instead of erroring (improves cross-provider compat).
+  drop_params: true
+  # Persist virtual keys + spend tracking in SQLite.
+  database_url: os.environ/DATABASE_URL
+  store_model_in_db: true
+
+# ---------------------------------------------------------------------------
+# Litellm module-level settings (logging, timeouts, etc.)
+# ---------------------------------------------------------------------------
+litellm_settings:
+  # Redact API keys from logs.
+  redact_user_api_key_info: true
+  # Request timeout in seconds.
+  request_timeout: 120
+  # Turn off verbose success logging in production.
+  success_callback: []
+  failure_callback: []

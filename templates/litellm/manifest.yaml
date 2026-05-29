@@ -1,0 +1,31 @@
+# =============================================================================
+# dockyard / litellm — LiteLLM Proxy Gateway
+# OpenAI-compatible API proxy that routes LLM calls through a VPS,
+# masking the origin location from upstream providers.
+# Uses the official LiteLLM image — no custom Dockerfile required.
+# =============================================================================
+name: litellm
+description: LiteLLM proxy gateway — routes LLM API calls through a VPS to mask origin
+
+# LiteLLM manages its own data; no agent user dirs needed.
+agent_dirs: []
+root_dirs:
+  - config
+  - data
+
+# No custom build — official image is pulled directly by docker compose.
+shared_files: []
+
+build_args:
+  - name: LITELLM_PORT
+    prompt: "LiteLLM proxy port on host"
+    default: "4000"
+  - name: DNS_SERVER
+    prompt: "Primary DNS server (LAN resolver or 1.1.1.1 for a plain VPS)"
+    default: "1.1.1.1"
+
+host_files:
+  - src: env.example
+    dst: secrets/env.example
+  - src: proxy_config.yaml.example
+    dst: config/proxy_config.yaml.example

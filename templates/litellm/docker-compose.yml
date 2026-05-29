@@ -1,0 +1,50 @@
+# =============================================================================
+# dockyard / litellm — Docker Compose
+# LiteLLM proxy gateway — OpenAI-compatible API that routes to upstream
+# providers (OpenAI, Anthropic, Gemini, …) from a VPS, masking the caller's
+# origin location.
+# All instance-specific values come from .env (at VOLUMES_BASE).
+# =============================================================================
+name: litellm
+
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: dy-${CONTAINER_NAME}
+    hostname: ${CONTAINER_NAME}
+    restart: unless-stopped
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "2"]
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"
+    volumes:
+      # Proxy config — copy proxy_config.yaml.example → config/proxy_config.yaml
+      # and edit before first deploy.
+      - ${VOLUMES_BASE}/config/proxy_config.yaml:/app/config.yaml:ro
+      # SQLite usage DB (optional — remove if using an external Postgres).
+      - ${VOLUMES_BASE}/data:/app/data
+    environment:
+      CONTAINER_NAME: "${CONTAINER_NAME}"
+      # Master key — all clients must send this as the Bearer token.
+      LITELLM_MASTER_KEY: "${LITELLM_MASTER_KEY}"
+      # Upstream provider keys — sourced from secrets/env at startup.
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      # SQLite path inside container.
+      DATABASE_URL: "sqlite:////app/data/litellm.db"
+      # Store virtual keys in DB so they persist across restarts.
+      STORE_MODEL_IN_DB: "True"
+    env_file:
+      - ${VOLUMES_BASE}/secrets/env
+    dns:
+      - "${DNS_SERVER:-1.1.1.1}"
+      - "8.8.8.8"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          cpus: "0.1"
+          memory: 256M
