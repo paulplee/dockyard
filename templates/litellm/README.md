@@ -30,25 +30,64 @@ The proxy is available at `http://<vps-ip>:4000` (default port).
 
 ## Client Configuration
 
-Point any OpenAI-compatible client at the proxy:
+Point any OpenAI-compatible client at the proxy. The endpoint is plain HTTP — do not use `https://`.
 
 ```bash
-# curl
-curl http://<vps-ip>:4000/v1/chat/completions \
+# Text
+curl -s http://<vps-ip>:4000/v1/chat/completions \
   -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "hi"}]}'
+  -d '{"model": "gemini-flash", "messages": [{"role": "user", "content": "hi"}]}'
+```
+
+```bash
+# Vision / OCR — always send images as base64; URL-based image fetching is
+# blocked by most CDNs when the request originates from a VPS IP.
+#
+# macOS:  base64 -b0 image.png
+# Linux:  base64 -w0 image.png
+IMG=$(base64 -w0 /path/to/image.png)   # Linux; use -b0 on macOS
+
+curl -s http://<vps-ip>:4000/v1/chat/completions \
+  -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"model\": \"gemini-flash\",
+    \"messages\": [{
+      \"role\": \"user\",
+      \"content\": [
+        {\"type\": \"text\", \"text\": \"Extract all text from this image.\"},
+        {\"type\": \"image_url\", \"image_url\": {\"url\": \"data:image/png;base64,${IMG}\"}}
+      ]
+    }]
+  }" | python3 -c "import sys,json; print(json.load(sys.stdin)['choices'][0]['message']['content'])"
 ```
 
 ```python
 # Python (openai SDK)
 from openai import OpenAI
+import base64, pathlib
 
 client = OpenAI(
     base_url="http://<vps-ip>:4000/v1",
     api_key="<your-LITELLM_MASTER_KEY>",
 )
-response = client.chat.completions.create(model="gpt-4o-mini", messages=[...])
+
+# Text
+response = client.chat.completions.create(
+    model="gemini-flash",
+    messages=[{"role": "user", "content": "hi"}],
+)
+
+# Vision / OCR
+img_b64 = base64.b64encode(pathlib.Path("image.png").read_bytes()).decode()
+response = client.chat.completions.create(
+    model="gemini-flash",
+    messages=[{"role": "user", "content": [
+        {"type": "text", "text": "Extract all text from this image."},
+        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
+    ]}],
+)
 ```
 
 ```bash
@@ -63,17 +102,17 @@ OPENAI_API_KEY=<your-LITELLM_MASTER_KEY>
 
 Defines model aliases, routing rules, and global settings. Edit this file to add or remove providers. Changes take effect on container restart.
 
-See `proxy_config.yaml.example` for a full annotated example covering OpenAI, Anthropic, Gemini, and Groq.
+See `proxy_config.yaml.example` for a full annotated example. By default the template ships with Gemini 2.5 Flash; add other providers as needed.
 
 ### Secrets (`$VOLUMES_BASE/secrets/env`)
 
 | Variable | Purpose |
 |---|---|
 | `LITELLM_MASTER_KEY` | Bearer token required by all clients — generate with `openssl rand -hex 32` |
-| `OPENAI_API_KEY` | OpenAI provider key |
-| `ANTHROPIC_API_KEY` | Anthropic provider key |
 | `GEMINI_API_KEY` | Google Gemini provider key |
-| `GROQ_API_KEY` | Groq provider key |
+| `OPENAI_API_KEY` | OpenAI provider key (optional) |
+| `ANTHROPIC_API_KEY` | Anthropic provider key (optional) |
+| `GROQ_API_KEY` | Groq provider key (optional) |
 
 Generate a secure master key:
 

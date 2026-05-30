@@ -34,10 +34,12 @@ model_list:
       model: anthropic/claude-haiku-3-5
       api_key: os.environ/ANTHROPIC_API_KEY
 
-  # Google Gemini
-  - model_name: gemini-pro
+  # Google Gemini — 2.5 Flash supports vision/OCR natively.
+  # Send images using the standard OpenAI vision format (url or base64 in
+  # message content); LiteLLM translates them to Gemini's multimodal format.
+  - model_name: gemini-flash
     litellm_params:
-      model: gemini/gemini-2.0-flash
+      model: gemini/gemini-2.5-flash
       api_key: os.environ/GEMINI_API_KEY
 
   # Groq (fast inference)

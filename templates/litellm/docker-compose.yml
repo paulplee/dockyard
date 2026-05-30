@@ -20,21 +20,12 @@ services:
       # Proxy config — copy proxy_config.yaml.example → config/proxy_config.yaml
       # and edit before first deploy.
       - ${VOLUMES_BASE}/config/proxy_config.yaml:/app/config.yaml:ro
-      # SQLite usage DB (optional — remove if using an external Postgres).
+      # Data dir — unused in stateless mode; kept for future Postgres migration.
       - ${VOLUMES_BASE}/data:/app/data
     environment:
       CONTAINER_NAME: "${CONTAINER_NAME}"
-      # Master key — all clients must send this as the Bearer token.
-      LITELLM_MASTER_KEY: "${LITELLM_MASTER_KEY}"
-      # Upstream provider keys — sourced from secrets/env at startup.
-      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
-      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
-      GROQ_API_KEY: "${GROQ_API_KEY:-}"
-      # SQLite path inside container.
-      DATABASE_URL: "sqlite:////app/data/litellm.db"
-      # Store virtual keys in DB so they persist across restarts.
-      STORE_MODEL_IN_DB: "True"
+    # LITELLM_MASTER_KEY and all provider API keys come from secrets/env so
+    # they are never substituted from the host shell (which would blank them).
     env_file:
       - ${VOLUMES_BASE}/secrets/env
     dns:
