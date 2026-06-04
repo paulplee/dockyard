@@ -74,6 +74,10 @@ if [ -f /secrets/env ]; then
   fi
 fi
 
+# Create privilege separation directory — /run is tmpfs, so it doesn't
+# survive from the image build.
+mkdir -p /run/sshd
+
 /usr/sbin/sshd
 
 exec "$@"

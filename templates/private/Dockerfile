@@ -176,11 +176,12 @@ RUN mkdir -p /workspace /secrets /logs \
     && chown ${AGENT_USER}:${AGENT_USER} /workspace /logs \
     && chmod 750 /secrets
 
-# ── Container init script + boot-seed ────────────────────────────────────────
+# ── Container init script + boot-seed + entrypoint ──────────────────────────
 COPY container-init.sh /usr/local/sbin/container-init.sh
 COPY container-init.service /etc/systemd/system/container-init.service
+COPY entrypoint.sh /entrypoint.sh
 COPY boot-seed.sh /boot-seed.sh
-RUN chmod 755 /usr/local/sbin/container-init.sh /boot-seed.sh \
+RUN chmod 755 /usr/local/sbin/container-init.sh /entrypoint.sh /boot-seed.sh \
     && mkdir -p /etc/systemd/system/multi-user.target.wants \
     && ln -sf /etc/systemd/system/container-init.service \
     /etc/systemd/system/multi-user.target.wants/container-init.service
