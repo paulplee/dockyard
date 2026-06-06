@@ -123,6 +123,21 @@ RUN echo 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' \
 
 USER root
 
+# ── Cache buster for main-branch builds ────────────────────────────────────
+# When HERMES_VERSION=main, Docker's layer cache never invalidates on its own
+# because the ARG string "main" hasn't changed. This layer fetches the latest
+# commit SHA from GitHub and writes it to a file, which busts the cache for
+# all subsequent layers (including the pip install) whenever main advances.
+# For pinned tags the SHA fetch is skipped — the tag string alone is enough.
+RUN if [ "${HERMES_VERSION}" = "main" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+      && curl -fsSL "https://api.github.com/repos/NousResearch/hermes-agent/commits/main" | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])" > /tmp/.hermes-cache-buster \
+      && echo "main @ $(cat /tmp/.hermes-cache-buster)" \
+      && apt-get purge -y ca-certificates && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*; \
+    else \
+      echo "${HERMES_VERSION}" > /tmp/.hermes-cache-buster; \
+    fi
+
 # ── Python virtual environment with Hermes Agent ─────────────────────────────
 # Venv lives in the agent user's home so it can be bind-mounted as a volume
 # and survive container rebuilds. A seed copy is kept in /opt/hermes-venv-seed
