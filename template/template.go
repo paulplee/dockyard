@@ -43,9 +43,22 @@ func openTemplateFile(path string) ([]byte, error) {
 	return fs.ReadFile(embedded, path)
 }
 
+// templateFSForPath returns the fs.FS that contains path, preferring
+// additionalFS (last registered wins), then falling back to embedded.
+func templateFSForPath(path string) (fs.FS, error) {
+	for i := len(additionalFS) - 1; i >= 0; i-- {
+		if _, err := fs.Stat(additionalFS[i], path); err == nil {
+			return additionalFS[i], nil
+		}
+	}
+	if _, err := fs.Stat(embedded, path); err == nil {
+		return embedded, nil
+	}
+	return nil, fmt.Errorf("template path %q not found in any FS", path)
+}
+
 // readTemplateDir reads directory entries from the primary or additional FS.
 func readTemplateDir(path string) ([]os.DirEntry, error) {
-	// Check additional FS first — merges into a set to avoid duplicates.
 	seen := map[string]bool{}
 	var out []os.DirEntry
 	for i := len(additionalFS) - 1; i >= 0; i-- {
@@ -116,7 +129,6 @@ func List() ([]string, error) {
 		if !e.IsDir() {
 			continue
 		}
-		// Check if manifest.yaml exists in either FS.
 		if _, err := openTemplateFile(filepath.Join("templates", e.Name(), "manifest.yaml")); err != nil {
 			continue
 		}
@@ -155,7 +167,12 @@ func StageBuildContext(name, dstDir string) error {
 	}
 
 	root := filepath.Join("templates", name)
-	err = fs.WalkDir(embedded, root, func(p string, d fs.DirEntry, walkErr error) error {
+	tfs, err := templateFSForPath(root)
+	if err != nil {
+		return fmt.Errorf("stage build context for %q: %w", name, err)
+	}
+
+	err = fs.WalkDir(tfs, root, func(p string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -173,7 +190,7 @@ func StageBuildContext(name, dstDir string) error {
 		if d.IsDir() {
 			return os.MkdirAll(dst, 0o755)
 		}
-		return copyEmbedded(p, dst)
+		return copyTemplateFile(tfs, p, dst)
 	})
 	if err != nil {
 		return err
@@ -185,7 +202,7 @@ func StageBuildContext(name, dstDir string) error {
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return err
 		}
-		if err := copyEmbedded(srcPath, dst); err != nil {
+		if err := copyTemplateFile(nil, srcPath, dst); err != nil {
 			return fmt.Errorf("copy shared %s: %w", sf.Src, err)
 		}
 	}
@@ -202,6 +219,10 @@ func WriteHostFiles(name, baseDir string) error {
 		return err
 	}
 	root := filepath.Join("templates", name)
+	tfs, err := templateFSForPath(root)
+	if err != nil {
+		return err
+	}
 	for _, hf := range m.HostFiles {
 		src := filepath.Join(root, hf.Src)
 		dst := filepath.Join(baseDir, hf.Dst)
@@ -211,15 +232,38 @@ func WriteHostFiles(name, baseDir string) error {
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return err
 		}
-		if err := copyEmbedded(src, dst); err != nil {
+		if err := copyTemplateFile(tfs, src, dst); err != nil {
 			return fmt.Errorf("seed host file %s: %w", hf.Src, err)
 		}
 	}
 	return nil
 }
 
-func copyEmbedded(src, dst string) error {
-	data, err := fs.ReadFile(embedded, src)
+// copyTemplateFile copies a file from tfs (if provided) or the first FS that
+// contains srcPath. If tfs is nil, it searches additionalFS then embedded.
+func copyTemplateFile(tfs fs.FS, src, dst string) error {
+	if tfs == nil {
+		var err error
+		tfs, err = templateFSForPath(src)
+		if err != nil {
+			// Fall back to searching all additional FS then embedded.
+			return copyViaOpenTemplate(src, dst)
+		}
+	}
+	data, err := fs.ReadFile(tfs, src)
+	if err != nil {
+		return err
+	}
+	mode := os.FileMode(0o644)
+	if strings.HasSuffix(src, ".sh") {
+		mode = 0o755
+	}
+	return os.WriteFile(dst, data, mode)
+}
+
+// copyViaOpenTemplate uses openTemplateFile to read src and write dst.
+func copyViaOpenTemplate(src, dst string) error {
+	data, err := openTemplateFile(src)
 	if err != nil {
 		return err
 	}
