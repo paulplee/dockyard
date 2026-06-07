@@ -16,6 +16,7 @@ agent_dirs:
   - nvim-data
   - nvim-state
   - logs
+  - workspace
 root_dirs:
   - ssh
   - secrets

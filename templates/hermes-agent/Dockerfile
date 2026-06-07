@@ -123,20 +123,10 @@ RUN echo 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' \
 
 USER root
 
-# ── Cache buster for main-branch builds ────────────────────────────────────
-# When HERMES_VERSION=main, Docker's layer cache never invalidates on its own
-# because the ARG string "main" hasn't changed. This layer fetches the latest
-# commit SHA from GitHub and writes it to a file, which busts the cache for
-# all subsequent layers (including the pip install) whenever main advances.
-# For pinned tags the SHA fetch is skipped — the tag string alone is enough.
-# curl, ca-certificates, and python3 are already installed by the system
-# packages layer above — no additional apt operations needed.
-RUN if [ "${HERMES_VERSION}" = "main" ]; then \
-      curl -fsSL "https://api.github.com/repos/NousResearch/hermes-agent/commits/main" | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])" > /tmp/.hermes-cache-buster \
-      && echo "main @ $(cat /tmp/.hermes-cache-buster)"; \
-    else \
-      echo "${HERMES_VERSION}" > /tmp/.hermes-cache-buster; \
-    fi
+# Cache-busting timestamp injected by `dockyard deploy` so that main-branch
+# builds always re-fetch the latest hermes-agent from GitHub.
+ARG DEPLOY_TS=0
+RUN echo "deploy-ts:${DEPLOY_TS}" > /dev/null
 
 # ── Python virtual environment with Hermes Agent ─────────────────────────────
 # Venv lives in the agent user's home so it can be bind-mounted as a volume
@@ -194,6 +184,7 @@ RUN mkdir -p /workspace /secrets /logs \
 # bind-mounted ~/.config/systemd/user/ on each boot.
 COPY hermes-agent.service /usr/local/share/dockyard/hermes-agent.service
 COPY hermes-dashboard.service /usr/local/share/dockyard/hermes-dashboard.service
+COPY hermes-gateway.service /usr/local/share/dockyard/hermes-gateway.service
 
 # Enable linger so user services start on boot without an interactive login
 RUN mkdir -p /var/lib/systemd/linger \

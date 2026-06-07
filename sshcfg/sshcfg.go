@@ -1,4 +1,4 @@
-// Package sshcfg manages the ~/.ssh/config entry for a dockyard deployment
+// Package sshcfg manages the ~/.ssh/config entry for a deployment
 // and installs an authorized_keys file into $VolumesBase/ssh/.
 package sshcfg
 
@@ -11,30 +11,34 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/paulplee/dockyard/internal/config"
+	"github.com/paulplee/dockyard/config"
+	"github.com/paulplee/dockyard/pkg/dockyard"
 )
 
 // Entry describes one deployment's SSH stanza.
 type Entry struct {
-	Name         string // deployment name (Host alias will be "dy-<Name>")
+	Name         string // deployment name
 	Port         int
+	AgentUser    string // SSH username inside the container
 	IdentityFile string
 	KnownHosts   string // absolute path
 }
 
 // Marker returns the sentinel comment line written above each stanza.
-func (e Entry) Marker() string { return "# dockyard: dy-" + e.Name }
+func (e Entry) Marker(engine *dockyard.Engine) string {
+	return "# " + engine.Name + ": " + engine.ContainerPrefix + e.Name
+}
 
 // Render returns the full ~/.ssh/config stanza (with a leading blank line).
-func (e Entry) Render() string {
+func (e Entry) Render(engine *dockyard.Engine) string {
 	var b strings.Builder
 	b.WriteString("\n")
-	b.WriteString(e.Marker())
+	b.WriteString(e.Marker(engine))
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "Host dy-%s\n", e.Name)
+	fmt.Fprintf(&b, "Host %s%s\n", engine.ContainerPrefix, e.Name)
 	b.WriteString("    HostName 127.0.0.1\n")
 	fmt.Fprintf(&b, "    Port %d\n", e.Port)
-	b.WriteString("    User agent\n")
+	fmt.Fprintf(&b, "    User %s\n", e.AgentUser)
 	fmt.Fprintf(&b, "    IdentityFile %s\n", e.IdentityFile)
 	b.WriteString("    IdentitiesOnly yes\n")
 	b.WriteString("    StrictHostKeyChecking accept-new\n")
@@ -42,10 +46,9 @@ func (e Entry) Render() string {
 	return b.String()
 }
 
-// Install appends the entry to ~/.ssh/config if no stanza with its marker is
-// already present. Returns (added, error) — added=false means a stanza already
-// existed and nothing was written.
-func Install(e Entry) (bool, error) {
+// Install appends the entry to ~/.ssh/config if no stanza with its marker
+// is already present. Returns (added, error).
+func Install(engine *dockyard.Engine, e Entry) (bool, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return false, err
@@ -56,7 +59,7 @@ func Install(e Entry) (bool, error) {
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return false, err
 	}
-	if strings.Contains(string(existing), e.Marker()) {
+	if strings.Contains(string(existing), e.Marker(engine)) {
 		return false, nil
 	}
 
@@ -68,7 +71,7 @@ func Install(e Entry) (bool, error) {
 		return false, err
 	}
 	defer f.Close()
-	if _, err := f.WriteString(e.Render()); err != nil {
+	if _, err := f.WriteString(e.Render(engine)); err != nil {
 		return false, err
 	}
 	if err := os.Chmod(cfgPath, 0o600); err != nil {
@@ -137,9 +140,9 @@ func InstallAuthorizedKeys(volumesBase string, pubKeyPath string) error {
 	return config.WriteFilePrivileged(filepath.Join(sshDir, "authorized_keys"), data, 0o600)
 }
 
-// KnownHostsPath returns ~/.config/dockyard/known_hosts.
-func KnownHostsPath() (string, error) {
-	dir, err := config.GlobalDir()
+// KnownHostsPath returns ~/.config/<product>/known_hosts.
+func KnownHostsPath(engine *dockyard.Engine) (string, error) {
+	dir, err := config.GlobalDir(engine)
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +150,7 @@ func KnownHostsPath() (string, error) {
 }
 
 // HasStanza reports whether ~/.ssh/config already contains the marker for name.
-func HasStanza(name string) (bool, error) {
+func HasStanza(engine *dockyard.Engine, name string) (bool, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return false, err
@@ -161,7 +164,8 @@ func HasStanza(name string) (bool, error) {
 	}
 	defer f.Close()
 	s := bufio.NewScanner(f)
-	marker := "# dockyard: dy-" + name
+	e := Entry{Name: name}
+	marker := e.Marker(engine)
 	for s.Scan() {
 		if strings.TrimSpace(s.Text()) == marker {
 			return true, s.Err()

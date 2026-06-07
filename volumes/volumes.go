@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/paulplee/dockyard/internal/config"
-	"github.com/paulplee/dockyard/internal/template"
+	"github.com/paulplee/dockyard/config"
+	"github.com/paulplee/dockyard/template"
 )
 
 // Prepare creates the template's agent_dirs and root_dirs under base, then

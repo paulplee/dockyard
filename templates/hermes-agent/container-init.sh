@@ -100,22 +100,19 @@ if [ ! -f "${VENV_BUILDTIME}" ] || ! diff -q "${SEED_BUILDTIME}" "${VENV_BUILDTI
     chown -R ${AGENT_USER}:${AGENT_USER} /home/${AGENT_USER}/.hermes-venv
 fi
 
-# Install hermes-agent and hermes-dashboard systemd user services into bind-mounted ~/.config
+# Install hermes-agent, hermes-dashboard, and hermes-gateway systemd user services
+# into bind-mounted ~/.config. Always install (not just on first boot) so
+# service updates from image rebuilds are picked up.
 SVC_DIR="/home/${AGENT_USER}/.config/systemd/user"
-if [ ! -f "${SVC_DIR}/hermes-agent.service" ]; then
-    echo ">>> Installing hermes-agent systemd user service..."
-    su -s /bin/bash "${AGENT_USER}" -c \
-        "mkdir -p ${SVC_DIR}/default.target.wants \
-         && cp /usr/local/share/dockyard/hermes-agent.service ${SVC_DIR}/hermes-agent.service \
-         && ln -sf ../hermes-agent.service ${SVC_DIR}/default.target.wants/hermes-agent.service"
-fi
-if [ ! -f "${SVC_DIR}/hermes-dashboard.service" ]; then
-    echo ">>> Installing hermes-dashboard systemd user service..."
-    su -s /bin/bash "${AGENT_USER}" -c \
-        "mkdir -p ${SVC_DIR}/default.target.wants \
-         && cp /usr/local/share/dockyard/hermes-dashboard.service ${SVC_DIR}/hermes-dashboard.service \
-         && ln -sf ../hermes-dashboard.service ${SVC_DIR}/default.target.wants/hermes-dashboard.service"
-fi
+echo ">>> Installing hermes-agent systemd user services..."
+su -s /bin/bash "${AGENT_USER}" -c \
+    "mkdir -p ${SVC_DIR}/default.target.wants \
+     && cp /usr/local/share/dockyard/hermes-agent.service ${SVC_DIR}/hermes-agent.service \
+     && ln -sf ../hermes-agent.service ${SVC_DIR}/default.target.wants/hermes-agent.service \
+     && cp /usr/local/share/dockyard/hermes-dashboard.service ${SVC_DIR}/hermes-dashboard.service \
+     && ln -sf ../hermes-dashboard.service ${SVC_DIR}/default.target.wants/hermes-dashboard.service \
+     && cp /usr/local/share/dockyard/hermes-gateway.service ${SVC_DIR}/hermes-gateway.service \
+     && ln -sf ../hermes-gateway.service ${SVC_DIR}/default.target.wants/hermes-gateway.service"
 
 AGENT_UID="$(id -u "${AGENT_USER}")"
 
@@ -129,6 +126,6 @@ fi
 # Start user services now — the user@UID instance may have started before the
 # services were installed by this script, so kick them explicitly.
 DBUS="unix:path=/run/user/${AGENT_UID}/bus"
-su -s /bin/bash "${AGENT_USER}" -c \
-    "XDG_RUNTIME_DIR=/run/user/${AGENT_UID} DBUS_SESSION_BUS_ADDRESS=${DBUS} \
-     systemctl --user start hermes-agent.service hermes-dashboard.service 2>/dev/null || true"
+ su -s /bin/bash "${AGENT_USER}" -c \
+     "XDG_RUNTIME_DIR=/run/user/${AGENT_UID} DBUS_SESSION_BUS_ADDRESS=${DBUS} \
+      systemctl --user start hermes-agent.service hermes-dashboard.service hermes-gateway.service 2>/dev/null || true"

@@ -1,6 +1,6 @@
-// Package config manages dockyard's on-disk configuration: a global config
-// file at ~/.config/dockyard/config.yaml and per-deployment config.yaml files
-// stored under $VolumesRoot/<name>/.
+// Package config manages on-disk configuration: a global config file at
+// ~/.config/<name>/config.yaml and per-deployment config.yaml files stored
+// under $VolumesRoot/<name>/.
 package config
 
 import (
@@ -12,26 +12,27 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/paulplee/dockyard/pkg/dockyard"
 	"gopkg.in/yaml.v3"
 )
 
-// Global holds host-wide dockyard settings.
+// Global holds host-wide settings.
 type Global struct {
 	VolumesRoot string `yaml:"volumes_root"`
 }
 
-// GlobalDir returns ~/.config/dockyard.
-func GlobalDir() (string, error) {
+// GlobalDir returns ~/.config/<product>.
+func GlobalDir(engine *dockyard.Engine) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".config", "dockyard"), nil
+	return filepath.Join(home, ".config", engine.Name), nil
 }
 
 // GlobalPath returns the path to the global YAML config file.
-func GlobalPath() (string, error) {
-	dir, err := GlobalDir()
+func GlobalPath(engine *dockyard.Engine) (string, error) {
+	dir, err := GlobalDir(engine)
 	if err != nil {
 		return "", err
 	}
@@ -39,8 +40,8 @@ func GlobalPath() (string, error) {
 }
 
 // legacyGlobalEnvPath is the pre-Go Make-era config file.
-func legacyGlobalEnvPath() (string, error) {
-	dir, err := GlobalDir()
+func legacyGlobalEnvPath(engine *dockyard.Engine) (string, error) {
+	dir, err := GlobalDir(engine)
 	if err != nil {
 		return "", err
 	}
@@ -49,8 +50,8 @@ func legacyGlobalEnvPath() (string, error) {
 
 // LoadGlobal reads the YAML config, falling back to the legacy .env file if
 // the YAML form does not yet exist. Returns (nil, nil) if nothing is found.
-func LoadGlobal() (*Global, error) {
-	p, err := GlobalPath()
+func LoadGlobal(engine *dockyard.Engine) (*Global, error) {
+	p, err := GlobalPath(engine)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +68,7 @@ func LoadGlobal() (*Global, error) {
 	}
 
 	// Legacy fallback.
-	legacy, err := legacyGlobalEnvPath()
+	legacy, err := legacyGlobalEnvPath(engine)
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +86,8 @@ func LoadGlobal() (*Global, error) {
 }
 
 // Save writes the global config as YAML.
-func (g *Global) Save() error {
-	p, err := GlobalPath()
+func (g *Global) Save(engine *dockyard.Engine) error {
+	p, err := GlobalPath(engine)
 	if err != nil {
 		return err
 	}

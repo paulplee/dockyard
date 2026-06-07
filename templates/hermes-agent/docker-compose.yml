@@ -16,6 +16,7 @@ services:
         NEOVIM_VERSION: "0.12.1"
         SSH_PORT: "22"
         HERMES_VERSION: "${HERMES_VERSION:-main}"
+        DEPLOY_TS: "${DEPLOY_TS:-0}"
     container_name: dy-${CONTAINER_NAME}
     hostname: ${CONTAINER_NAME}
     restart: unless-stopped

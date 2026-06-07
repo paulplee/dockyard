@@ -5,29 +5,30 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
-	"github.com/paulplee/dockyard/internal/config"
-	"github.com/paulplee/dockyard/internal/dockercmd"
-	"github.com/paulplee/dockyard/internal/template"
-	"github.com/paulplee/dockyard/internal/volumes"
+	"github.com/paulplee/dockyard/config"
+	"github.com/paulplee/dockyard/dockercmd"
+	"github.com/paulplee/dockyard/pkg/dockyard"
+	"github.com/paulplee/dockyard/template"
+	"github.com/paulplee/dockyard/volumes"
 	"github.com/spf13/cobra"
 )
 
-func newDeployCmd() *cobra.Command {
+func newDeployCmd(engine *dockyard.Engine) *cobra.Command {
 	return &cobra.Command{
 		Use:   "deploy <name>",
 		Short: "Create host volumes, stage build context, then `docker compose up -d --build`",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDeploy(args[0], true)
+			return runDeploy(engine, args[0], true)
 		},
 	}
 }
 
 // stageAndEnv prepares the build directory and returns (buildDir, envPath, extraEnv).
-// The shared build directory lives at $VolumesBase/build/.
-func stageAndEnv(name string) (*config.Global, *config.Deployment, *template.Manifest, string, string, []string, error) {
-	g, err := mustLoadGlobal()
+func stageAndEnv(engine *dockyard.Engine, name string) (*config.Global, *config.Deployment, *template.Manifest, string, string, []string, error) {
+	g, err := mustLoadGlobal(engine)
 	if err != nil {
 		return nil, nil, nil, "", "", nil, err
 	}
@@ -36,10 +37,10 @@ func stageAndEnv(name string) (*config.Global, *config.Deployment, *template.Man
 		return nil, nil, nil, "", "", nil, fmt.Errorf("load deployment %q: %w", name, err)
 	}
 	if d == nil {
-		return nil, nil, nil, "", "", nil, fmt.Errorf("unknown deployment %q — run 'dockyard create' first", name)
+		return nil, nil, nil, "", "", nil, fmt.Errorf("unknown deployment %q — run '%s create' first", name, engine.Name)
 	}
 	if d.Template == "" {
-		return nil, nil, nil, "", "", nil, fmt.Errorf("deployment %q has no template set — re-run 'dockyard create' or edit config.yaml", name)
+		return nil, nil, nil, "", "", nil, fmt.Errorf("deployment %q has no template set — re-run '%s create' or edit config.yaml", name, engine.Name)
 	}
 	m, err := template.LoadManifest(d.Template)
 	if err != nil {
@@ -47,8 +48,6 @@ func stageAndEnv(name string) (*config.Global, *config.Deployment, *template.Man
 	}
 	base := d.Base(g.VolumesRoot)
 	buildDir := filepath.Join(base, "build")
-	// Ensure build dir exists and is writable by the calling user (the
-	// deployment base may be root-owned from a legacy Make setup).
 	if err := config.MkdirAllPrivileged(buildDir, 0o755); err != nil {
 		return nil, nil, nil, "", "", nil, fmt.Errorf("create build dir: %w", err)
 	}
@@ -58,8 +57,7 @@ func stageAndEnv(name string) (*config.Global, *config.Deployment, *template.Man
 	if err := template.StageBuildContext(d.Template, buildDir); err != nil {
 		return nil, nil, nil, "", "", nil, fmt.Errorf("stage build context: %w", err)
 	}
-	// Re-write .env so it is always in sync with config.yaml.
-	if err := d.WriteEnvFile(g.VolumesRoot); err != nil {
+	if err := d.WriteEnvFile(engine, g.VolumesRoot); err != nil {
 		return nil, nil, nil, "", "", nil, err
 	}
 	envPath := config.DeploymentEnvPath(g.VolumesRoot, name)
@@ -69,6 +67,7 @@ func stageAndEnv(name string) (*config.Global, *config.Deployment, *template.Man
 		"AGENT_UID=" + strconv.Itoa(d.AgentUID),
 		"AGENT_GID=" + strconv.Itoa(d.AgentGID),
 		"SSH_PORT=" + strconv.Itoa(d.SSHPort),
+		"DEPLOY_TS=" + strconv.FormatInt(time.Now().Unix(), 10),
 	}
 	for k, v := range d.BuildArgs {
 		extraEnv = append(extraEnv, k+"="+v)
@@ -76,9 +75,9 @@ func stageAndEnv(name string) (*config.Global, *config.Deployment, *template.Man
 	return g, d, m, buildDir, envPath, extraEnv, nil
 }
 
-// runDeploy implements `dockyard deploy` and is shared by the `up` alias.
-func runDeploy(name string, withBuild bool) error {
-	g, d, m, buildDir, envPath, extraEnv, err := stageAndEnv(name)
+// runDeploy implements deploy and is shared by the up alias.
+func runDeploy(engine *dockyard.Engine, name string, withBuild bool) error {
+	g, d, m, buildDir, envPath, extraEnv, err := stageAndEnv(engine, name)
 	if err != nil {
 		return err
 	}
@@ -95,14 +94,13 @@ func runDeploy(name string, withBuild bool) error {
 	return dockercmd.Compose(buildDir, envPath, extraEnv, args...)
 }
 
-// newUpCmd brings the stack up without forcing a rebuild.
-func newUpCmd() *cobra.Command {
+func newUpCmd(engine *dockyard.Engine) *cobra.Command {
 	return &cobra.Command{
 		Use:   "up <name>",
 		Short: "Start the deployment (no rebuild)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, _, _, buildDir, envPath, extraEnv, err := stageAndEnv(args[0])
+			_, _, _, buildDir, envPath, extraEnv, err := stageAndEnv(engine, args[0])
 			if err != nil {
 				return err
 			}
@@ -111,13 +109,13 @@ func newUpCmd() *cobra.Command {
 	}
 }
 
-func newDownCmd() *cobra.Command {
+func newDownCmd(engine *dockyard.Engine) *cobra.Command {
 	return &cobra.Command{
 		Use:   "down <name>",
 		Short: "Stop the deployment",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := mustLoadGlobal()
+			g, err := mustLoadGlobal(engine)
 			if err != nil {
 				return err
 			}
@@ -132,14 +130,14 @@ func newDownCmd() *cobra.Command {
 	}
 }
 
-func newRestartCmd() *cobra.Command {
+func newRestartCmd(engine *dockyard.Engine) *cobra.Command {
 	return &cobra.Command{
 		Use:   "restart <name>",
 		Short: "Restart the deployment (down + up, no rebuild)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			g, err := mustLoadGlobal()
+			g, err := mustLoadGlobal(engine)
 			if err != nil {
 				return err
 			}
@@ -148,7 +146,7 @@ func newRestartCmd() *cobra.Command {
 			if err := dockercmd.Compose(buildDir, envPath, nil, "down"); err != nil {
 				return err
 			}
-			_, _, _, _, _, extraEnv, err := stageAndEnv(name)
+			_, _, _, _, _, extraEnv, err := stageAndEnv(engine, name)
 			if err != nil {
 				return err
 			}

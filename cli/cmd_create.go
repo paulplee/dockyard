@@ -3,24 +3,24 @@ package cli
 import (
 	"fmt"
 	"net"
-	"os/user"
 	"strconv"
 	"strings"
 
-	"github.com/paulplee/dockyard/internal/config"
-	"github.com/paulplee/dockyard/internal/prompt"
-	"github.com/paulplee/dockyard/internal/sshcfg"
-	"github.com/paulplee/dockyard/internal/template"
+	"github.com/paulplee/dockyard/config"
+	"github.com/paulplee/dockyard/pkg/dockyard"
+	"github.com/paulplee/dockyard/prompt"
+	"github.com/paulplee/dockyard/sshcfg"
+	"github.com/paulplee/dockyard/template"
 	"github.com/spf13/cobra"
 )
 
-func newCreateCmd() *cobra.Command {
+func newCreateCmd(engine *dockyard.Engine) *cobra.Command {
 	return &cobra.Command{
 		Use:   "create <template> [name]",
 		Short: "Interactively configure a new deployment (writes config.yaml + SSH entry)",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := mustLoadGlobal()
+			g, err := mustLoadGlobal(engine)
 			if err != nil {
 				return err
 			}
@@ -30,7 +30,7 @@ func newCreateCmd() *cobra.Command {
 				return err
 			}
 			p := prompt.New()
-			p.Info("=== Dockyard Create (%s) ===", tmplName)
+			p.Info("=== %s Create (%s) ===", strings.Title(engine.Name), tmplName)
 
 			name := ""
 			if len(args) == 2 {
@@ -46,11 +46,11 @@ func newCreateCmd() *cobra.Command {
 				return fmt.Errorf("deployment name is required")
 			}
 
-			agentUser, err := p.String("Agent username", "dy-user")
+			agentUser, err := p.String("Agent username", engine.DefaultAgentUser)
 			if err != nil {
 				return err
 			}
-			defUID := nextFreeUID(1100)
+			defUID := dockyard.NextFreeUID(1100)
 			uid, err := p.Int("Agent UID", defUID)
 			if err != nil {
 				return err
@@ -67,8 +67,6 @@ func newCreateCmd() *cobra.Command {
 				if ba.Help != "" {
 					p.Info("%s", ba.Help)
 				}
-				// Expand {VOLUMES_BASE} placeholder in defaults so manifests
-				// can reference the deployment's local volumes directory.
 				dflt := strings.ReplaceAll(ba.Default, "{VOLUMES_BASE}", volumesBase)
 				var val string
 				if len(ba.Options) > 0 {
@@ -82,6 +80,13 @@ func newCreateCmd() *cobra.Command {
 				buildArgs[ba.Name] = val
 			}
 
+			// Extension hook: before writing config
+			if engine.Hooks.OnBeforeCreate != nil {
+				if err := engine.Hooks.OnBeforeCreate(engine, buildArgs); err != nil {
+					return err
+				}
+			}
+
 			d := &config.Deployment{
 				Name:          name,
 				Template:      tmplName,
@@ -92,7 +97,7 @@ func newCreateCmd() *cobra.Command {
 				SSHPort:       port,
 				BuildArgs:     buildArgs,
 			}
-			if err := d.Save(g.VolumesRoot); err != nil {
+			if err := d.Save(engine, g.VolumesRoot); err != nil {
 				return err
 			}
 			p.Info("Wrote %s", config.DeploymentConfigPath(g.VolumesRoot, name))
@@ -130,36 +135,35 @@ func newCreateCmd() *cobra.Command {
 			if chosen != "" {
 				identity = strings.TrimSuffix(chosen, ".pub")
 			}
-			kh, err := sshcfg.KnownHostsPath()
+			kh, err := sshcfg.KnownHostsPath(engine)
 			if err != nil {
 				return err
 			}
-			added, err := sshcfg.Install(sshcfg.Entry{
-				Name: name, Port: port, IdentityFile: identity, KnownHosts: kh,
+			added, err := sshcfg.Install(engine, sshcfg.Entry{
+				Name: name, Port: port, AgentUser: agentUser, IdentityFile: identity, KnownHosts: kh,
 			})
 			if err != nil {
 				return fmt.Errorf("ssh config: %w", err)
 			}
+			alias := engine.SSHHostAlias(name)
 			if added {
-				p.Info("Added 'dy-%s' to ~/.ssh/config  →  ssh dy-%s", name, name)
+				p.Info("Added '%s' to ~/.ssh/config  →  ssh %s", alias, alias)
 			} else {
-				p.Info("~/.ssh/config already has 'dy-%s' — skipping", name)
+				p.Info("~/.ssh/config already has '%s' — skipping", alias)
+			}
+
+			// Extension hook: after writing all files
+			if engine.Hooks.OnAfterCreate != nil {
+				if err := engine.Hooks.OnAfterCreate(engine, base); err != nil {
+					return err
+				}
 			}
 
 			p.Info("")
-			p.Info("Next: dockyard deploy %s   then   ssh dy-%s", name, name)
+			p.Info("Next: %s deploy %s   then   ssh %s", engine.Name, name, alias)
 			return nil
 		},
 	}
-}
-
-func nextFreeUID(start int) int {
-	for uid := start; uid < start+500; uid++ {
-		if _, err := user.LookupId(strconv.Itoa(uid)); err != nil {
-			return uid
-		}
-	}
-	return start
 }
 
 func nextFreePort(start int) int {

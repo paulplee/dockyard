@@ -4,19 +4,20 @@ import (
 	"fmt"
 	"os/user"
 
-	"github.com/paulplee/dockyard/internal/config"
-	"github.com/paulplee/dockyard/internal/prompt"
+	"github.com/paulplee/dockyard/config"
+	"github.com/paulplee/dockyard/pkg/dockyard"
+	"github.com/paulplee/dockyard/prompt"
 	"github.com/spf13/cobra"
 )
 
-func newInitCmd() *cobra.Command {
+func newInitCmd(engine *dockyard.Engine) *cobra.Command {
 	return &cobra.Command{
 		Use:   "init",
 		Short: "Configure this machine (choose a volumes root)",
-		Long:  "Writes ~/.config/dockyard/config.yaml with the path that will hold all deployment volumes.",
+		Long:  "Writes ~/.config/" + engine.Name + "/config.yaml with the path that will hold all deployment volumes.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			existing, err := config.LoadGlobal()
+			existing, err := config.LoadGlobal(engine)
 			if err != nil {
 				return err
 			}
@@ -27,14 +28,14 @@ func newInitCmd() *cobra.Command {
 			}
 			if defVol == "" {
 				u, _ := user.Current()
-				defVol = u.HomeDir + "/.config/dockyard/volumes"
+				defVol = u.HomeDir + "/.config/" + engine.Name + "/volumes"
 			}
 			root, err := p.String("Volumes root path", defVol)
 			if err != nil {
 				return err
 			}
 			g := &config.Global{VolumesRoot: root}
-			if err := g.Save(); err != nil {
+			if err := g.Save(engine); err != nil {
 				return err
 			}
 			// Ensure the volumes root exists and is owned by the calling user.
@@ -44,7 +45,7 @@ func newInitCmd() *cobra.Command {
 			if err := config.ChownToSelf(root); err != nil {
 				return fmt.Errorf("chown volumes root: %w", err)
 			}
-			gp, _ := config.GlobalPath()
+			gp, _ := config.GlobalPath(engine)
 			fmt.Printf("Wrote %s (volumes_root=%s)\n", gp, root)
 			return nil
 		},
@@ -53,13 +54,13 @@ func newInitCmd() *cobra.Command {
 
 // mustLoadGlobal returns the global config or errors if the machine has not
 // been initialised yet.
-func mustLoadGlobal() (*config.Global, error) {
-	g, err := config.LoadGlobal()
+func mustLoadGlobal(engine *dockyard.Engine) (*config.Global, error) {
+	g, err := config.LoadGlobal(engine)
 	if err != nil {
 		return nil, err
 	}
 	if g == nil || g.VolumesRoot == "" {
-		return nil, fmt.Errorf("dockyard is not configured — run 'dockyard init' first")
+		return nil, fmt.Errorf("%s is not configured — run '%s init' first", engine.Name, engine.Name)
 	}
 	return g, nil
 }
