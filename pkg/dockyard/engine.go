@@ -76,6 +76,13 @@ func (e *Engine) WithContainerPrefix(v string) *Engine {
 	return &e2
 }
 
+// WithDefaultAgentUser returns a copy with DefaultAgentUser set to v.
+func (e *Engine) WithDefaultAgentUser(v string) *Engine {
+	e2 := *e
+	e2.DefaultAgentUser = v
+	return &e2
+}
+
 // WithConfigDir returns a copy with ConfigDir set to v.
 func (e *Engine) WithConfigDir(v string) *Engine {
 	e2 := *e
