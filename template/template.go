@@ -19,6 +19,65 @@ import (
 // embedded is the project-wide embedded FS containing templates/ and shared/.
 var embedded = dockyard.Assets
 
+// additionalFS holds extra template filesystems registered by downstream
+// products (e.g., operon adds its private templates/operon/ template).
+var additionalFS []fs.FS
+
+// SetAdditionalFS registers additional embedded filesystems that contain
+// templates/<name>/ subdirectories. Call before List/LoadManifest/StageBaseContext.
+func SetAdditionalFS(filesystems []fs.FS) {
+	additionalFS = filesystems
+}
+
+// openTemplateFile opens a file from the primary or additional FS, returning
+// the FS and the file data. Checks additional FS first so downstream products
+// can override template files.
+func openTemplateFile(path string) ([]byte, error) {
+	// Check additional FS in reverse order (last registered wins for overrides).
+	for i := len(additionalFS) - 1; i >= 0; i-- {
+		data, err := fs.ReadFile(additionalFS[i], path)
+		if err == nil {
+			return data, nil
+		}
+	}
+	return fs.ReadFile(embedded, path)
+}
+
+// readTemplateDir reads directory entries from the primary or additional FS.
+func readTemplateDir(path string) ([]os.DirEntry, error) {
+	// Check additional FS first — merges into a set to avoid duplicates.
+	seen := map[string]bool{}
+	var out []os.DirEntry
+	for i := len(additionalFS) - 1; i >= 0; i-- {
+		entries, err := fs.ReadDir(additionalFS[i], path)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if !seen[e.Name()] {
+				out = append(out, e)
+				seen[e.Name()] = true
+			}
+		}
+	}
+	entries, err := fs.ReadDir(embedded, path)
+	if err != nil {
+		if len(out) > 0 {
+			sort.Slice(out, func(i, j int) bool { return out[i].Name() < out[j].Name() })
+			return out, nil
+		}
+		return nil, err
+	}
+	for _, e := range entries {
+		if !seen[e.Name()] {
+			out = append(out, e)
+			seen[e.Name()] = true
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name() < out[j].Name() })
+	return out, nil
+}
+
 // BuildArg describes a single prompt shown during `dockyard create`.
 type BuildArg struct {
 	Name    string   `yaml:"name"`
@@ -46,9 +105,9 @@ type Manifest struct {
 	HostFiles   []SharedFile `yaml:"host_files"`
 }
 
-// List returns the names of all embedded templates (alphabetical).
+// List returns the names of all templates (primary + additional FS).
 func List() ([]string, error) {
-	entries, err := fs.ReadDir(embedded, "templates")
+	entries, err := readTemplateDir("templates")
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +116,8 @@ func List() ([]string, error) {
 		if !e.IsDir() {
 			continue
 		}
-		if _, err := fs.Stat(embedded, filepath.Join("templates", e.Name(), "manifest.yaml")); err != nil {
+		// Check if manifest.yaml exists in either FS.
+		if _, err := openTemplateFile(filepath.Join("templates", e.Name(), "manifest.yaml")); err != nil {
 			continue
 		}
 		out = append(out, e.Name())
@@ -66,9 +126,9 @@ func List() ([]string, error) {
 	return out, nil
 }
 
-// LoadManifest loads templates/<name>/manifest.yaml from the embedded FS.
+// LoadManifest loads templates/<name>/manifest.yaml from the primary or additional FS.
 func LoadManifest(name string) (*Manifest, error) {
-	data, err := fs.ReadFile(embedded, filepath.Join("templates", name, "manifest.yaml"))
+	data, err := openTemplateFile(filepath.Join("templates", name, "manifest.yaml"))
 	if err != nil {
 		return nil, fmt.Errorf("load manifest for %q: %w", name, err)
 	}
