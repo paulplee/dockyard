@@ -12,6 +12,26 @@ import (
 	"runtime"
 )
 
+// ExpandPath expands a leading "~" in path to the current user's home
+// directory. If path does not start with "~" or home cannot be determined,
+// path is returned unchanged. Only "~/..." is supported (not "~user/...").
+func ExpandPath(path string) string {
+	if path == "" || path[0] != '~' {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	if len(path) == 1 {
+		return home
+	}
+	if path[1] != '/' && path[1] != os.PathSeparator {
+		return path
+	}
+	return filepath.Join(home, path[2:])
+}
+
 // sudo returns an *exec.Cmd that runs `sudo <args...>` with stdin, stdout, and
 // stderr connected to the terminal so that password prompts work.
 func sudo(args ...string) *exec.Cmd {

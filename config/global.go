@@ -61,6 +61,7 @@ func LoadGlobal(engine *dockyard.Engine) (*Global, error) {
 		if err := yaml.Unmarshal(data, &g); err != nil {
 			return nil, fmt.Errorf("parse %s: %w", p, err)
 		}
+		g.VolumesRoot = ExpandPath(g.VolumesRoot)
 		return &g, nil
 	}
 	if !errors.Is(err, fs.ErrNotExist) {
@@ -80,7 +81,7 @@ func LoadGlobal(engine *dockyard.Engine) (*Global, error) {
 		return nil, err
 	}
 	if vr := kv["VOLUMES_ROOT"]; vr != "" {
-		return &Global{VolumesRoot: vr}, nil
+		return &Global{VolumesRoot: ExpandPath(vr)}, nil
 	}
 	return nil, nil
 }

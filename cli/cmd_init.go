@@ -34,6 +34,7 @@ func newInitCmd(engine *dockyard.Engine) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			root = config.ExpandPath(root)
 			g := &config.Global{VolumesRoot: root}
 			if err := g.Save(engine); err != nil {
 				return err
