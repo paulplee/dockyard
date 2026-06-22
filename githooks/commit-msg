@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# =============================================================================
+# dockyard commit-msg hook
+#
+# Enforces dockyard's standalone-open-source commit hygiene: commit messages
+# must not reference any downstream product by name. dockyard is the
+# independent foundation; its history must read as self-contained.
+#
+# See AGENTS.md ("Commit Hygiene") for the rationale.
+#
+# Install (once per clone):
+#   git config core.hooksPath githooks
+#
+# Override (rare legitimate case, e.g. this hook itself): add a line containing
+#   commit-msg-override: operon-reference-intentional
+# anywhere in the commit message.
+# =============================================================================
+set -euo pipefail
+
+msg_file="$1"
+msg="$(cat "$msg_file")"
+
+# Allow an explicit override.
+if grep -qiE 'commit-msg-override:[[:space:]]*operon-reference-intentional' <<<"$msg"; then
+    exit 0
+fi
+
+# Case-insensitive check for "operon" as a word-ish token. We match the bare
+# word and common suffixed forms, but NOT substrings inside larger words
+# (e.g. a hypothetical "operonics"). \b word boundaries handle that.
+# Alternatives cover: operon, operons, operon's, operon-specific, operon-related, operon-wide.
+# The pattern is double-quoted so the inner single quote in operon's doesn't
+# close a shell quote; backslashes are literal for grep -E.
+if printf '%s' "$msg" | grep -qiE "\boperon(s|'s|-specific|-related|-wide)?\b" 2>/dev/null; then
+    cat >&2 <<'EOF'
+ERROR: dockyard commit message references "operon".
+
+dockyard is a standalone open-source project. Its commit history must not
+reference any downstream product by name — frame changes in dockyard's own
+terms (e.g. "downstream consumers of pkg/dockyard"), not as satisfying a
+specific product's need.
+
+See AGENTS.md ("Commit Hygiene").
+
+To override in a rare legitimate case, add a line to the commit message:
+    commit-msg-override: operon-reference-intentional
+EOF
+    exit 1
+fi
+
+exit 0
