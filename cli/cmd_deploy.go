@@ -26,8 +26,8 @@ func newDeployCmd(engine *dockyard.Engine) *cobra.Command {
 	}
 }
 
-// stageAndEnv prepares the build directory and returns (buildDir, envPath, extraEnv).
-func stageAndEnv(engine *dockyard.Engine, name string) (*config.Global, *config.Deployment, *template.Manifest, string, string, []string, error) {
+// StageAndEnv prepares the build directory and returns (buildDir, envPath, extraEnv).
+func StageAndEnv(engine *dockyard.Engine, name string) (*config.Global, *config.Deployment, *template.Manifest, string, string, []string, error) {
 	g, err := mustLoadGlobal(engine)
 	if err != nil {
 		return nil, nil, nil, "", "", nil, err
@@ -77,7 +77,7 @@ func stageAndEnv(engine *dockyard.Engine, name string) (*config.Global, *config.
 
 // runDeploy implements deploy and is shared by the up alias.
 func runDeploy(engine *dockyard.Engine, name string, withBuild bool) error {
-	g, d, m, buildDir, envPath, extraEnv, err := stageAndEnv(engine, name)
+	g, d, m, buildDir, envPath, extraEnv, err := StageAndEnv(engine, name)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func newUpCmd(engine *dockyard.Engine) *cobra.Command {
 		Short: "Start the deployment (no rebuild)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, _, _, buildDir, envPath, extraEnv, err := stageAndEnv(engine, args[0])
+			_, _, _, buildDir, envPath, extraEnv, err := StageAndEnv(engine, args[0])
 			if err != nil {
 				return err
 			}
@@ -146,7 +146,7 @@ func newRestartCmd(engine *dockyard.Engine) *cobra.Command {
 			if err := dockercmd.Compose(buildDir, envPath, nil, "down"); err != nil {
 				return err
 			}
-			_, _, _, _, _, extraEnv, err := stageAndEnv(engine, name)
+			_, _, _, _, _, extraEnv, err := StageAndEnv(engine, name)
 			if err != nil {
 				return err
 			}
