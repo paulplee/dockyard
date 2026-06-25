@@ -18,7 +18,9 @@ import (
 
 // Global holds host-wide settings.
 type Global struct {
-	VolumesRoot string `yaml:"volumes_root"`
+	VolumesRoot    string `yaml:"volumes_root"`
+	DomainName     string `yaml:"domain_name,omitempty"`
+	DeepSeekAPIKey string `yaml:"deepseek_api_key,omitempty"`
 }
 
 // GlobalDir returns ~/.config/<product>.
